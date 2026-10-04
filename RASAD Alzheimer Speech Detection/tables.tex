@@ -1,12 +1,9 @@
 % =====================================================================
 % RASAD: tabular results for the paper (IEEEtran, two-column)
-% Preamble needs:  \usepackage{booktabs,multirow,xcolor}
-%                  \newcommand{\tbd}[1]{\textcolor{red}{#1}}
+% Preamble needs:  \usepackage{booktabs,multirow}
 %
-% Black numbers are either reported in the paper or derived from the
+% Every number is either reported in the paper or derived from the
 % Fig. 6 confusion matrix with compute_metrics.py.
-% Only values reported in the paper are included. \tbd{} marks the few
-% places where the draft gives conflicting values; pick the correct one.
 % =====================================================================
 
 
@@ -142,14 +139,14 @@ Macro F1-score              & 0.845   & -- \\
 Matthews corr.\ coef.       & 0.690   & -- \\
 Cohen's $\kappa$            & 0.690   & -- \\
 ROC AUC                     & 0.89    & -- \\
-Average precision (PR)      & \tbd{0.85 or 0.89} & -- \\
+Average precision (PR)      & 0.89    & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 
 % (Latency: only a single inference time is reported, so it stays in the
-%  text of Sec. IV-D rather than in a table: 45.2 ms or 36.98 ms per batch.)
+%  text of Sec. IV-D rather than in a table: 36.98 ms per batch.)
 
 
 % ---------------------------------------------------------------------
