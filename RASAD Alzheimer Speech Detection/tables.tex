@@ -1,0 +1,201 @@
+% =====================================================================
+% RASAD: tabular results for the paper (IEEEtran, two-column)
+% Preamble needs:  \usepackage{booktabs,multirow,xcolor}
+%                  \newcommand{\tbd}[1]{\textcolor{red}{#1}}
+%
+% Black numbers are either reported in the paper or derived from the
+% Fig. 6 confusion matrix with compute_metrics.py.
+% \tbd{--} cells are values the paper does not report. Fill them from
+% your experiment logs; do not estimate them.
+% =====================================================================
+
+
+% ---------------------------------------------------------------------
+% Table II: dataset (place in Sec. III, after the ADReSSo21 paragraph)
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{ADReSSo21 data used in this study}
+\label{tab:dataset}
+\begin{tabular}{lccc}
+\toprule
+Split & AD & CN & Total \\
+\midrule
+Training (5-fold CV) & 87 & 79 & 166 \\
+Test (held out)      & 35 & 36 & 71  \\
+\midrule
+Total                & 122 & 115 & 237 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table III: implementation details (Sec. III)
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Feature extraction and model configuration}
+\label{tab:config}
+\begin{tabular}{ll}
+\toprule
+Component & Setting \\
+\midrule
+Acoustic encoder   & Wav2Vec2 (\tbd{checkpoint}), final hidden layer, \\
+                   & mean-pooled to \tbd{768}-d \\
+Text encoder       & BERT\textsubscript{base} uncased, fine-tuned, [CLS] (768-d) \\
+TF--IDF            & \tbd{n-gram range}, vocabulary \tbd{size} \\
+ASR                & AssemblyAI streaming API \\
+Fused dimension    & \tbd{--} \\
+PCA                & 95\% variance retained, \tbd{k} components \\
+XGBoost            & \tbd{n\_estimators, max\_depth, learning rate} \\
+Random Forest      & \tbd{n\_estimators, max\_depth} \\
+Logistic Regression& \tbd{C, penalty} \\
+Ensemble           & Soft voting, equal weights (Eq.~1) \\
+Tuning             & 5-fold CV on training set \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table IV: modality ablation (Sec. IV-A; complements Fig. 2)
+% NOTE: the paper gives three different pairs of unimodal accuracies
+% (see README). Use the values from your logs.
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Test-set performance by input modality (soft-voting ensemble)}
+\label{tab:ablation}
+\begin{tabular}{lccccc}
+\toprule
+Features & Acc. (\%) & Prec. & Rec. & F1 & AUC \\
+\midrule
+Acoustic (Wav2Vec2)          & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
+Linguistic (BERT + TF--IDF)  & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
+BERT only                    & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
+TF--IDF only                 & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
+\textbf{Fused (all)}         & \textbf{84.51} & \textbf{0.853} & \textbf{0.829} & \textbf{0.841} & \textbf{0.89} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table V: base classifiers vs. ensemble on the test set (Sec. IV-B)
+% AUCs are from Fig. 4; ensemble row from Fig. 6.
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Base classifiers and soft-voting ensemble on the test set (fused features)}
+\label{tab:classifiers}
+\begin{tabular}{lccccc}
+\toprule
+Model & Acc. (\%) & Prec. & Rec. & F1 & AUC \\
+\midrule
+Random Forest        & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.80 \\
+XGBoost              & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.83 \\
+Logistic Regression  & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.84 \\
+\textbf{Soft voting} & \textbf{84.51} & \textbf{0.853} & \textbf{0.829} & \textbf{0.841} & \textbf{0.89} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table VI: confusion matrix (can replace or accompany Fig. 6)
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Confusion matrix of the soft-voting ensemble on the test set ($n=71$)}
+\label{tab:cm}
+\begin{tabular}{llcc}
+\toprule
+ & & \multicolumn{2}{c}{Predicted} \\
+\cmidrule(lr){3-4}
+ & & CN & AD \\
+\midrule
+\multirow{2}{*}{Actual} & CN ($n=36$) & 31 (TN) & 5 (FP) \\
+                        & AD ($n=35$) & 6 (FN)  & 29 (TP) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table VII: full classification report, derived from Table VI
+% 95% CIs are Wilson score intervals. They quantify the "wide
+% uncertainty" mentioned in the Conclusion.
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Detailed test-set metrics of the proposed ensemble (AD = positive class)}
+\label{tab:metrics}
+\begin{tabular}{lcc}
+\toprule
+Metric & Value & 95\% CI \\
+\midrule
+Accuracy                    & 84.51\% & 74.3--91.1\% \\
+Balanced accuracy           & 84.48\% & -- \\
+Sensitivity (recall, AD)    & 82.86\% & 67.3--91.9\% \\
+Specificity (recall, CN)    & 86.11\% & 71.3--93.9\% \\
+Precision (PPV, AD)         & 85.29\% & 69.9--93.6\% \\
+NPV (precision, CN)         & 83.78\% & 68.9--92.3\% \\
+F1-score (AD)               & 0.841   & -- \\
+F1-score (CN)               & 0.849   & -- \\
+Macro F1-score              & 0.845   & -- \\
+Matthews corr.\ coef.       & 0.690   & -- \\
+Cohen's $\kappa$            & 0.690   & -- \\
+ROC AUC                     & 0.89    & \tbd{--} \\
+Average precision (PR)      & \tbd{0.85 or 0.89} & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table VIII: real-time latency (Sec. IV-D)
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Latency of the deployed pipeline on consumer hardware (\tbd{CPU, RAM})}
+\label{tab:latency}
+\begin{tabular}{lcc}
+\toprule
+Stage & Mean (ms) & Std (ms) \\
+\midrule
+Streaming ASR (AssemblyAI, final transcript) & \tbd{--} & \tbd{--} \\
+Wav2Vec2 feature extraction                  & \tbd{--} & \tbd{--} \\
+BERT + TF--IDF feature extraction            & \tbd{--} & \tbd{--} \\
+PCA + ensemble inference (test batch)        & \tbd{45.2 or 36.98} & \tbd{--} \\
+\midrule
+End-to-end (speech end $\rightarrow$ result) & \tbd{--} & \tbd{--} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% ---------------------------------------------------------------------
+% Table IX: same-benchmark comparison (ADReSSo21 test set only)
+% Complements Table I, which mixes corpora. Verify each figure against
+% the cited paper before submission.
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Comparison with published systems on the ADReSSo21 test set}
+\label{tab:adresso}
+\begin{tabular}{llc}
+\toprule
+System & Modalities & Acc. (\%) \\
+\midrule
+Challenge baseline, Luz et al.~\cite{b35} & Acoustic + linguistic & 78.87 \\
+WavBERT, Zhu et al.~\cite{b20}            & Acoustic + linguistic & 83.10 \\
+Rohanian et al.~\cite{b15}                & Acoustic + linguistic & 84.00 \\
+Pan et al.~\cite{b8}                      & Linguistic (BERT)     & 84.51 \\
+Syed et al.~\cite{b18}                    & Linguistic            & 84.51 \\
+\midrule
+\textbf{RASAD (ours)}                     & Acoustic + linguistic & \textbf{84.51} \\
+\bottomrule
+\end{tabular}
+\end{table}
+% Adjust \cite keys (b8, b15, ...) to match your .bib / thebibliography labels.
