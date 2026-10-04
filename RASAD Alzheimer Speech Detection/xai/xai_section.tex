@@ -1,0 +1,98 @@
+% =====================================================================
+% RASAD: Explainable-AI text for the paper (IEEEtran)
+% Preamble:  \usepackage{xcolor}
+%            \newcommand{\xx}[1]{\textcolor{red}{[#1]}}
+%
+% Every \xx{...} is a result that comes from xai_analysis.py
+% (file named in the brackets). Do not fill any of them by hand.
+% Sentences marked "% CHOOSE" have alternative wordings; keep the one
+% the results support and delete the other.
+% =====================================================================
+
+
+% ---------------------------------------------------------------------
+% (1) METHODS: new subsection at the end of Sec. III, after "Ensemble
+%     Classifier". This part is complete and needs no results.
+% ---------------------------------------------------------------------
+\subsection{Explainability Analysis}
+
+A screening result that a clinician cannot interrogate is difficult to act on, so we explain the ensemble's predictions with SHapley Additive exPlanations (SHAP)~\cite{lundberg2017}. SHAP assigns each input feature a contribution to an individual prediction such that the contributions sum to the difference between the model output and its expected value over a reference set.
+
+Feature-importance rankings computed after PCA describe principal components, which have no direct acoustic or linguistic meaning. We therefore attribute predictions to the original features. SHAP values for the ensemble's soft-voting probability $P_{\text{final}}(\text{AD})$ (Eq.~1) were first computed in the PCA space using a model-agnostic permutation explainer, with 100 randomly drawn training speakers as the background distribution. Because standardisation and PCA are linear, component $k$ deviates from its background mean by $\Delta z_k=\sum_j W_{kj}\,\Delta u_j$, where $W$ is the loading matrix and $\Delta u_j$ the deviation of standardised feature $j$. Each component's SHAP value $\phi_k$ was distributed over the original features in proportion to their terms in this sum,
+\begin{equation}
+\phi_j=\sum_k \phi_k\,\frac{W_{kj}\,\Delta u_j}{\Delta z_k},
+\end{equation}
+which preserves additivity exactly: the original-feature attributions still sum to the model output minus its expected value.
+
+Individual Wav2Vec2 and BERT embedding dimensions are not interpretable on their own, so their attributions were summed into modality-level contributions (acoustic: Wav2Vec2; linguistic: BERT and TF--IDF). TF--IDF dimensions correspond to words, and were analysed individually. We report (i)~the share of total absolute attribution carried by each modality, overall and per class; (ii)~the terms with the largest mean contribution toward AD and toward CN; (iii)~explanations for individual test speakers, including every misclassified case; and (iv)~the stability of these explanations when the pipeline, with unchanged hyperparameters, is refitted on each of five stratified cross-validation folds of the training set. Stability was measured as the standard deviation of modality shares across folds, the Jaccard overlap of the 20 highest-ranked terms between folds, and the Spearman correlation of term importances between folds.
+
+
+% ---------------------------------------------------------------------
+% (2) RESULTS: replaces the current Sec. IV-C first paragraph and Fig. 8
+%     (Random-Forest importances of principal components). Keep the
+%     t-SNE paragraph and Fig. 9.
+% ---------------------------------------------------------------------
+\subsection{Explainability of Predictions}
+
+\subsubsection{Modality contributions}
+Table~\ref{tab:xai_modality} and Fig.~\ref{fig:xai_modality} show how the ensemble's decisions divide between modalities. On the test set, acoustic features accounted for \xx{modality\_attribution.csv: Wav2Vec2, all}\% of total absolute attribution, BERT for \xx{BERT, all}\% and TF--IDF for \xx{TF-IDF, all}\%.
+% CHOOSE (a) if no modality is below ~15%:
+Every modality carries a substantial share, consistent with the accuracy gain of the fused model over either single modality (Fig.~2): the ensemble does not simply defer to the stronger linguistic stream.
+% CHOOSE (b) if one modality is below ~15%:
+% The \xx{weakest modality} stream contributes comparatively little, suggesting that most of the fusion gain comes from \xx{the two linguistic representations / ...}.
+The split differed by class: \xx{describe AD vs. CN columns, e.g. acoustic features weighed more heavily for AD speakers (x\% vs. y\%)}. Across cross-validation folds the shares varied by at most \xx{max SD from stability\_summary.json} percentage points, indicating that the modality balance is \xx{stable / sensitive to the training split}.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_xai_modality.pdf}
+\caption{Share of total absolute SHAP attribution per modality for AD and CN test speakers.}
+\label{fig:xai_modality}
+\end{figure}
+
+\subsubsection{Linguistic markers}
+Table~\ref{tab:xai_terms} and Fig.~\ref{fig:xai_terms} list the TF--IDF terms that most increased and most decreased the predicted probability of AD. Terms pushing toward AD were \xx{top terms toward AD}, while \xx{top terms toward CN} pushed toward CN.
+% Interpret ONLY what the table shows. Typical, literature-backed readings:
+%  - fillers / hesitations ("uh", "um")       -> word-finding difficulty [19]
+%  - indefinite words ("thing", "something")   -> semantic impoverishment [19]
+%  - picture content units ("cookie", "stool", "curtain", "window", "sink",
+%    "overflowing") toward CN                  -> preserved information content [19]
+\xx{One or two sentences linking the observed terms to known AD language markers, citing Fraser et al. [19].} Of the 20 highest-ranked terms, \xx{terms\_in\_top\_of\_every\_fold} appeared in the top 20 of every cross-validation fold (mean pairwise Jaccard overlap \xx{top20\_terms\_jaccard\_mean}; mean Spearman correlation of term importances \xx{term\_importance\_spearman\_mean}).
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{fig_xai_terms.pdf}
+\caption{TF--IDF terms with the largest mean SHAP contribution toward AD (red) and toward CN (blue) on the test set. This figure replaces the principal-component importances, which have no direct linguistic meaning.}
+\label{fig:xai_terms}
+\end{figure}
+
+\subsubsection{Individual explanations}
+SHAP explains each prediction separately, which is the form in which an explanation would reach a clinician. For speaker \xx{case\_explanations.csv row 1: speaker}, a correctly identified AD case ($P(\text{AD})=\xx{P(AD)}$ against a base rate of \xx{base}), the largest contribution came from \xx{modality with largest SHAP} ($+\xx{value}$), and the terms \xx{words toward AD} raised the predicted risk. \xx{Same for the confident CN case, row 2.} Among the \xx{11} misclassified speakers, \xx{summarise the pattern in the remaining rows, e.g. "most false positives were driven by acoustic features while their transcripts pushed toward CN", or "errors had probabilities close to 0.5, with modalities pointing in opposite directions"}. \xx{If true: Disagreement between modalities could therefore serve as a flag for referral rather than an automatic decision.}
+
+% Table: paste both tables from xai_results/xai_tables.tex here
+% (labels tab:xai_modality and tab:xai_terms).
+
+
+% ---------------------------------------------------------------------
+% (3) DISCUSSION: a short limitations paragraph (complete as written).
+% ---------------------------------------------------------------------
+These explanations have limits. SHAP describes how the model uses its inputs, not what causes the disease, so a term that raises the predicted risk is a correlate of AD in this corpus rather than a diagnostic sign. Attributions for Wav2Vec2 and BERT can only be interpreted at the level of the whole modality, because their individual dimensions have no fixed meaning. Finally, with 71 test speakers, term rankings below the first few positions should be read as indicative; the cross-validation stability analysis is reported for this reason.
+
+
+% ---------------------------------------------------------------------
+% (4) CONCLUSION: replace the sentence that begins "First, applying SHAP
+%     values to the fused feature space ..." with:
+% ---------------------------------------------------------------------
+% We applied SHAP to the fused feature space and mapped the attributions
+% back from principal components to acoustic and linguistic features, so
+% that each prediction can be traced to the speech measures that drove it.
+% Validation of these explanations with clinicians remains to be done.
+% ... and renumber the remaining future directions ("First, validation on
+% independently collected recordings ...; Second, ... Urdu ...").
+
+
+% ---------------------------------------------------------------------
+% (5) BIBLIOGRAPHY: add
+% ---------------------------------------------------------------------
+% \bibitem{lundberg2017} S. M. Lundberg and S.-I. Lee, ``A unified approach
+%   to interpreting model predictions,'' in \emph{Proc. Adv. Neural Inf.
+%   Process. Syst. (NeurIPS)}, 2017, pp. 4765--4774.
