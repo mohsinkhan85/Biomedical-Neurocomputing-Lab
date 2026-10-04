@@ -5,13 +5,13 @@ LaTeX tables for *RASAD: Real-Time Alzheimer's Speech Analysis & Diagnosis*.
 - `tables.tex`: seven IEEEtran tables (dataset, configuration, modality ablation, classifier AUCs, confusion matrix, detailed metrics with 95% CIs, ADReSSo21 comparison). They contain only values reported in the paper or derived from its confusion matrix.
 - `compute_metrics.py`: computes every derived metric from the Fig. 6 confusion matrix (TP 29, FN 6, TN 31, FP 5).
 
-Red `\tbd{}` cells mark the three places where the draft gives conflicting values (unimodal accuracies, average precision). Enter the correct value from your logs. The single inference time (45.2 ms or 36.98 ms) stays in the text of Sec. IV-D.
+The red `\tbd{}` cell marks average precision, where the draft gives conflicting values (0.85 vs. 0.89). Enter the correct value from your logs. The single inference time (45.2 ms or 36.98 ms) stays in the text of Sec. IV-D.
 
 ## Inconsistencies in the current draft to fix before submission
 
 | # | Item | Where | Conflict | Suggested fix |
 |---|------|-------|----------|---------------|
-| 1 | Unimodal accuracies | Abstract / Sec. IV-A / Fig. 2 caption | Acoustic 73.2 / 76.1 / 81.7 %; linguistic 81.7 / 78.9 / 73.2 % | Use one pair from the logs everywhere. The Fig. 2 caption has the two values swapped relative to the abstract. |
+| 1 | Unimodal accuracies | Abstract / Sec. IV-A / Fig. 2 caption | Acoustic 73.2 / 76.1 / 81.7 %; linguistic 81.7 / 78.9 / 73.2 % | Use the abstract values (73.2 acoustic, 81.7 linguistic). Change Sec. IV-A (76.1/78.9 → 73.2/81.7) and the Fig. 2 caption (swapped), and regenerate the Fig. 2 bar chart if its bars show other values. |
 | 2 | F1-score | Sec. IV-B (CM paragraph) | Says ≈ 0.89; the confusion matrix gives **0.841** (AD) / 0.845 (macro) | Use 0.84 |
 | 3 | Average precision | Sec. IV-B text vs. Fig. 5 caption | 0.85 vs. 0.89 | Use one value |
 | 4 | Inference time | Sec. IV-D text vs. Fig. 10 caption | 45.2 ms vs. 36.98 ms | Use one value |
