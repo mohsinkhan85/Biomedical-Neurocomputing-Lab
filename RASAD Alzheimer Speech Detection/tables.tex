@@ -5,8 +5,8 @@
 %
 % Black numbers are either reported in the paper or derived from the
 % Fig. 6 confusion matrix with compute_metrics.py.
-% \tbd{--} cells are values the paper does not report. Fill them from
-% your experiment logs; do not estimate them.
+% Only values reported in the paper are included. \tbd{} marks the few
+% places where the draft gives conflicting values; pick the correct one.
 % =====================================================================
 
 
@@ -41,16 +41,13 @@ Total                & 122 & 115 & 237 \\
 \toprule
 Component & Setting \\
 \midrule
-Acoustic encoder   & Wav2Vec2 (\tbd{checkpoint}), final hidden layer, \\
-                   & mean-pooled to \tbd{768}-d \\
+Acoustic encoder   & Wav2Vec2 (pre-trained), final hidden layer \\
 Text encoder       & BERT\textsubscript{base} uncased, fine-tuned, [CLS] (768-d) \\
-TF--IDF            & \tbd{n-gram range}, vocabulary \tbd{size} \\
+TF--IDF            & Lower-cased, punctuation removed \\
 ASR                & AssemblyAI streaming API \\
-Fused dimension    & \tbd{--} \\
-PCA                & 95\% variance retained, \tbd{k} components \\
-XGBoost            & \tbd{n\_estimators, max\_depth, learning rate} \\
-Random Forest      & \tbd{n\_estimators, max\_depth} \\
-Logistic Regression& \tbd{C, penalty} \\
+Fusion             & Concatenation of Wav2Vec2, BERT and TF--IDF \\
+PCA                & 95\% of variance retained \\
+Base classifiers   & XGBoost, Random Forest, Logistic Regression \\
 Ensemble           & Soft voting, equal weights (Eq.~1) \\
 Tuning             & 5-fold CV on training set \\
 \bottomrule
@@ -60,22 +57,21 @@ Tuning             & 5-fold CV on training set \\
 
 % ---------------------------------------------------------------------
 % Table IV: modality ablation (Sec. IV-A; complements Fig. 2)
-% NOTE: the paper gives three different pairs of unimodal accuracies
-% (see README). Use the values from your logs.
+% NOTE: the draft gives three different pairs of unimodal accuracies
+% (abstract 73.2/81.7, Sec. IV-A 76.1/78.9, Fig. 2 caption 81.7/73.2).
+% Enter the correct pair below.
 % ---------------------------------------------------------------------
 \begin{table}[!t]
 \centering
 \caption{Test-set performance by input modality (soft-voting ensemble)}
 \label{tab:ablation}
-\begin{tabular}{lccccc}
+\begin{tabular}{lc}
 \toprule
-Features & Acc. (\%) & Prec. & Rec. & F1 & AUC \\
+Features & Accuracy (\%) \\
 \midrule
-Acoustic (Wav2Vec2)          & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
-Linguistic (BERT + TF--IDF)  & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
-BERT only                    & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
-TF--IDF only                 & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} \\
-\textbf{Fused (all)}         & \textbf{84.51} & \textbf{0.853} & \textbf{0.829} & \textbf{0.841} & \textbf{0.89} \\
+Acoustic only (Wav2Vec2)          & \tbd{--} \\
+Linguistic only (BERT + TF--IDF)  & \tbd{--} \\
+\textbf{Fused (proposed)}        & \textbf{84.51} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -83,20 +79,20 @@ TF--IDF only                 & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{
 
 % ---------------------------------------------------------------------
 % Table V: base classifiers vs. ensemble on the test set (Sec. IV-B)
-% AUCs are from Fig. 4; ensemble row from Fig. 6.
+% AUCs are from Fig. 4.
 % ---------------------------------------------------------------------
 \begin{table}[!t]
 \centering
 \caption{Base classifiers and soft-voting ensemble on the test set (fused features)}
 \label{tab:classifiers}
-\begin{tabular}{lccccc}
+\begin{tabular}{lc}
 \toprule
-Model & Acc. (\%) & Prec. & Rec. & F1 & AUC \\
+Model & ROC AUC \\
 \midrule
-Random Forest        & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.80 \\
-XGBoost              & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.83 \\
-Logistic Regression  & \tbd{--} & \tbd{--} & \tbd{--} & \tbd{--} & 0.84 \\
-\textbf{Soft voting} & \textbf{84.51} & \textbf{0.853} & \textbf{0.829} & \textbf{0.841} & \textbf{0.89} \\
+Random Forest        & 0.80 \\
+XGBoost              & 0.83 \\
+Logistic Regression  & 0.84 \\
+\textbf{Soft voting} & \textbf{0.89} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -146,37 +142,19 @@ F1-score (CN)               & 0.849   & -- \\
 Macro F1-score              & 0.845   & -- \\
 Matthews corr.\ coef.       & 0.690   & -- \\
 Cohen's $\kappa$            & 0.690   & -- \\
-ROC AUC                     & 0.89    & \tbd{--} \\
+ROC AUC                     & 0.89    & -- \\
 Average precision (PR)      & \tbd{0.85 or 0.89} & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 
-% ---------------------------------------------------------------------
-% Table VIII: real-time latency (Sec. IV-D)
-% ---------------------------------------------------------------------
-\begin{table}[!t]
-\centering
-\caption{Latency of the deployed pipeline on consumer hardware (\tbd{CPU, RAM})}
-\label{tab:latency}
-\begin{tabular}{lcc}
-\toprule
-Stage & Mean (ms) & Std (ms) \\
-\midrule
-Streaming ASR (AssemblyAI, final transcript) & \tbd{--} & \tbd{--} \\
-Wav2Vec2 feature extraction                  & \tbd{--} & \tbd{--} \\
-BERT + TF--IDF feature extraction            & \tbd{--} & \tbd{--} \\
-PCA + ensemble inference (test batch)        & \tbd{45.2 or 36.98} & \tbd{--} \\
-\midrule
-End-to-end (speech end $\rightarrow$ result) & \tbd{--} & \tbd{--} \\
-\bottomrule
-\end{tabular}
-\end{table}
+% (Latency: only a single inference time is reported, so it stays in the
+%  text of Sec. IV-D rather than in a table: 45.2 ms or 36.98 ms per batch.)
 
 
 % ---------------------------------------------------------------------
-% Table IX: same-benchmark comparison (ADReSSo21 test set only)
+% Table VIII: same-benchmark comparison (ADReSSo21 test set only)
 % Complements Table I, which mixes corpora. Verify each figure against
 % the cited paper before submission.
 % ---------------------------------------------------------------------

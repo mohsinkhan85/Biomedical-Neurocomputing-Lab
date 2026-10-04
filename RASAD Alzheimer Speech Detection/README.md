@@ -2,10 +2,10 @@
 
 LaTeX tables for *RASAD: Real-Time Alzheimer's Speech Analysis & Diagnosis*.
 
-- `tables.tex`: eight IEEEtran tables (dataset, configuration, modality ablation, classifier comparison, confusion matrix, detailed metrics with 95% CIs, latency, ADReSSo21 comparison).
+- `tables.tex`: seven IEEEtran tables (dataset, configuration, modality ablation, classifier AUCs, confusion matrix, detailed metrics with 95% CIs, ADReSSo21 comparison). They contain only values reported in the paper or derived from its confusion matrix.
 - `compute_metrics.py`: computes every derived metric from the Fig. 6 confusion matrix (TP 29, FN 6, TN 31, FP 5).
 
-Red `\tbd{}` cells hold values the paper does not report. Fill them from the experiment logs.
+Red `\tbd{}` cells mark the three places where the draft gives conflicting values (unimodal accuracies, average precision). Enter the correct value from your logs. The single inference time (45.2 ms or 36.98 ms) stays in the text of Sec. IV-D.
 
 ## Inconsistencies in the current draft to fix before submission
 
