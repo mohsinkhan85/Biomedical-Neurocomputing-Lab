@@ -1,9 +1,10 @@
 % =====================================================================
-% RASAD: tabular results for the paper (IEEEtran, two-column)
-% Preamble needs:  \usepackage{booktabs,multirow}
+% RASAD: tables for the paper (IEEEtran, two-column)
+% Preamble needs:  \usepackage{booktabs}
 %
 % Every number is either reported in the paper or derived from the
-% Fig. 6 confusion matrix with compute_metrics.py.
+% Fig. 6 confusion matrix with compute_metrics.py. Results already shown
+% in figures (confusion matrix, modality bars, ROC AUCs) are not repeated.
 % =====================================================================
 
 
@@ -28,148 +29,57 @@ Total                & 122 & 115 & 237 \\
 
 
 % ---------------------------------------------------------------------
-% Table III: implementation details (Sec. III)
+% Table III: test-set metrics with uncertainty (Sec. IV-B)
+% Derived from the Fig. 6 confusion matrix. 95% CIs are Wilson score
+% intervals; they quantify the uncertainty stated in the Conclusion.
 % ---------------------------------------------------------------------
 \begin{table}[!t]
 \centering
-\caption{Feature extraction and model configuration}
-\label{tab:config}
-\begin{tabular}{ll}
-\toprule
-Component & Setting \\
-\midrule
-Acoustic encoder   & Wav2Vec2 (pre-trained), final hidden layer \\
-Text encoder       & BERT\textsubscript{base} uncased, fine-tuned, [CLS] (768-d) \\
-TF--IDF            & Lower-cased, punctuation removed \\
-ASR                & AssemblyAI streaming API \\
-Fusion             & Concatenation of Wav2Vec2, BERT and TF--IDF \\
-PCA                & 95\% of variance retained \\
-Base classifiers   & XGBoost, Random Forest, Logistic Regression \\
-Ensemble           & Soft voting, equal weights (Eq.~1) \\
-Tuning             & 5-fold CV on training set \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-% ---------------------------------------------------------------------
-% Table IV: modality ablation (Sec. IV-A; complements Fig. 2)
-% Unimodal values follow the abstract (73.2 / 81.7). Sec. IV-A and the
-% Fig. 2 caption must be changed to match.
-% ---------------------------------------------------------------------
-\begin{table}[!t]
-\centering
-\caption{Test-set performance by input modality (soft-voting ensemble)}
-\label{tab:ablation}
-\begin{tabular}{lc}
-\toprule
-Features & Accuracy (\%) \\
-\midrule
-Acoustic only (Wav2Vec2)          & 73.2 \\
-Linguistic only (BERT + TF--IDF)  & 81.7 \\
-\textbf{Fused (proposed)}        & \textbf{84.5} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-% ---------------------------------------------------------------------
-% Table V: base classifiers vs. ensemble on the test set (Sec. IV-B)
-% AUCs are from Fig. 4.
-% ---------------------------------------------------------------------
-\begin{table}[!t]
-\centering
-\caption{Base classifiers and soft-voting ensemble on the test set (fused features)}
-\label{tab:classifiers}
-\begin{tabular}{lc}
-\toprule
-Model & ROC AUC \\
-\midrule
-Random Forest        & 0.80 \\
-XGBoost              & 0.83 \\
-Logistic Regression  & 0.84 \\
-\textbf{Soft voting} & \textbf{0.89} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-% ---------------------------------------------------------------------
-% Table VI: confusion matrix (can replace or accompany Fig. 6)
-% ---------------------------------------------------------------------
-\begin{table}[!t]
-\centering
-\caption{Confusion matrix of the soft-voting ensemble on the test set ($n=71$)}
-\label{tab:cm}
-\begin{tabular}{llcc}
-\toprule
- & & \multicolumn{2}{c}{Predicted} \\
-\cmidrule(lr){3-4}
- & & CN & AD \\
-\midrule
-\multirow{2}{*}{Actual} & CN ($n=36$) & 31 (TN) & 5 (FP) \\
-                        & AD ($n=35$) & 6 (FN)  & 29 (TP) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
-% ---------------------------------------------------------------------
-% Table VII: full classification report, derived from Table VI
-% 95% CIs are Wilson score intervals. They quantify the "wide
-% uncertainty" mentioned in the Conclusion.
-% ---------------------------------------------------------------------
-\begin{table}[!t]
-\centering
-\caption{Detailed test-set metrics of the proposed ensemble (AD = positive class)}
+\caption{Test-set performance of the proposed ensemble ($n=71$; AD is the positive class)}
 \label{tab:metrics}
 \begin{tabular}{lcc}
 \toprule
 Metric & Value & 95\% CI \\
 \midrule
-Accuracy                    & 84.51\% & 74.3--91.1\% \\
-Balanced accuracy           & 84.48\% & -- \\
-Sensitivity (recall, AD)    & 82.86\% & 67.3--91.9\% \\
-Specificity (recall, CN)    & 86.11\% & 71.3--93.9\% \\
-Precision (PPV, AD)         & 85.29\% & 69.9--93.6\% \\
-NPV (precision, CN)         & 83.78\% & 68.9--92.3\% \\
-F1-score (AD)               & 0.841   & -- \\
-F1-score (CN)               & 0.849   & -- \\
-Macro F1-score              & 0.845   & -- \\
-Matthews corr.\ coef.       & 0.690   & -- \\
-Cohen's $\kappa$            & 0.690   & -- \\
-ROC AUC                     & 0.89    & -- \\
-Average precision (PR)      & 0.89    & -- \\
+Accuracy                  & 84.5\% & 74.3--91.1\% \\
+Sensitivity (AD recall)   & 82.9\% & 67.3--91.9\% \\
+Specificity (CN recall)   & 86.1\% & 71.3--93.9\% \\
+Precision (PPV)           & 85.3\% & 69.9--93.6\% \\
+NPV                       & 83.8\% & 68.9--92.3\% \\
+\midrule
+F1-score (AD)             & 0.841 & -- \\
+Macro F1-score            & 0.845 & -- \\
+Matthews corr.\ coef.     & 0.690 & -- \\
+ROC AUC                   & 0.89  & -- \\
+Average precision         & 0.89  & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 
-% (Latency: only a single inference time is reported, so it stays in the
-%  text of Sec. IV-D rather than in a table: 36.98 ms per batch.)
-
-
 % ---------------------------------------------------------------------
-% Table VIII: same-benchmark comparison (ADReSSo21 test set only)
-% Complements Table I, which mixes corpora. Verify each figure against
-% the cited paper before submission.
+% Table IV: same-benchmark comparison (Sec. IV, or end of Sec. II-G)
+% Only systems evaluated on the ADReSSo21 test set, so accuracies are
+% directly comparable (unlike Table I, which mixes corpora).
+% Verify each figure against the cited paper before submission.
 % ---------------------------------------------------------------------
 \begin{table}[!t]
 \centering
 \caption{Comparison with published systems on the ADReSSo21 test set}
 \label{tab:adresso}
-\begin{tabular}{llc}
+\begin{tabular}{lllc}
 \toprule
-System & Modalities & Acc. (\%) \\
+System & Modalities & Inference & Acc.\ (\%) \\
 \midrule
-Challenge baseline, Luz et al.~\cite{b35} & Acoustic + linguistic & 78.87 \\
-WavBERT, Zhu et al.~\cite{b20}            & Acoustic + linguistic & 83.10 \\
-Rohanian et al.~\cite{b15}                & Acoustic + linguistic & 84.00 \\
-Pan et al.~\cite{b8}                      & Linguistic (BERT)     & 84.51 \\
-Syed et al.~\cite{b18}                    & Linguistic            & 84.51 \\
+Luz et al.~\cite{b35} (baseline) & A + L & Offline & 78.87 \\
+Zhu et al.~\cite{b20} (WavBERT)  & A + L & Offline & 83.10 \\
+Rohanian et al.~\cite{b15}       & A + L & Offline & 84.00 \\
+Pan et al.~\cite{b8}             & L     & Offline & 84.51 \\
+Syed et al.~\cite{b18}           & L     & Offline & 84.51 \\
 \midrule
-\textbf{RASAD (ours)}                     & Acoustic + linguistic & \textbf{84.51} \\
+\textbf{RASAD (ours)}            & A + L & Real-time & \textbf{84.51} \\
 \bottomrule
+\multicolumn{4}{l}{\footnotesize A: acoustic; L: linguistic.}
 \end{tabular}
 \end{table}
 % Adjust \cite keys (b8, b15, ...) to match your .bib / thebibliography labels.
