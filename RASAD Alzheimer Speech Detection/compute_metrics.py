@@ -54,5 +54,19 @@ def main():
         print(f"{name:28s} {v:.4f}{ci_s}")
 
 
+def screening_table(prevalences=(0.05, 0.10, 0.20, 0.30, 0.50), n=1000):
+    """PPV, NPV and expected outcomes per n screened at each AD prevalence (Bayes' rule)."""
+    sens = TP / (TP + FN)
+    spec = TN / (TN + FP)
+    print(f"\nLR+ = {sens / (1 - spec):.2f}, LR- = {(1 - sens) / spec:.2f}")
+    print(f"{'Prev':>5} {'PPV':>6} {'NPV':>6} {'TP':>5} {'FP':>5} {'FN':>5} {'TN':>5}  per {n}")
+    for p in prevalences:
+        tp, fn = n * p * sens, n * p * (1 - sens)
+        tn, fp = n * (1 - p) * spec, n * (1 - p) * (1 - spec)
+        print(f"{p:5.0%} {tp / (tp + fp):6.1%} {tn / (tn + fn):6.1%} "
+              f"{tp:5.0f} {fp:5.0f} {fn:5.0f} {tn:5.0f}")
+
+
 if __name__ == "__main__":
     main()
+    screening_table()

@@ -83,3 +83,29 @@ Syed et al.~\cite{b18}           & L     & Offline & 84.51 \\
 \end{tabular}
 \end{table}
 % Adjust \cite keys (b8, b15, ...) to match your .bib / thebibliography labels.
+
+
+% ---------------------------------------------------------------------
+% Table V: expected screening performance at realistic prevalence
+% (Sec. IV-B or Discussion). ADReSSo21 is balanced (49% AD in the test
+% set); screened populations are not. PPV and NPV follow from the test
+% sensitivity (82.9%) and specificity (86.1%) by Bayes' rule; counts are
+% per 1,000 people screened. Computed by compute_metrics.py.
+% ---------------------------------------------------------------------
+\begin{table}[!t]
+\centering
+\caption{Projected screening performance of RASAD at different AD prevalences (per 1{,}000 people screened)}
+\label{tab:screening}
+\begin{tabular}{cccccc}
+\toprule
+Prevalence & PPV (\%) & NPV (\%) & TP & FP & FN \\
+\midrule
+5\%  & 23.9 & 99.0 & 41  & 132 & 9  \\
+10\% & 39.9 & 97.8 & 83  & 125 & 17 \\
+20\% & 59.9 & 95.3 & 166 & 111 & 34 \\
+30\% & 71.9 & 92.1 & 249 & 97  & 51 \\
+50\% & 85.6 & 83.4 & 414 & 69  & 86 \\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize Positive likelihood ratio 5.97; negative likelihood ratio 0.20.}
+\end{tabular}
+\end{table}
