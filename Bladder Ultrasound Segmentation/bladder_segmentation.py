@@ -7,8 +7,9 @@ in every frame and tracks it through the video:
 
     1. Detect the ultrasound field of view (the "fan"), so the black screen
        border is not mistaken for the bladder.
-    2. Reduce speckle noise (median + bilateral filter).
-    3. Threshold dark pixels inside the fan (Otsu, or a fixed value).
+    2. Reduce speckle noise (median + bilateral filter) and even out the
+       brightness loss with depth, so deep tissue does not look like fluid.
+    3. Threshold dark pixels inside the fan.
     4. Clean the mask with morphology and fill holes.
     5. Pick the bladder component: the one under --seed, or the best large,
        central component in the first frame, then the component that overlaps
@@ -89,11 +90,34 @@ def fill_holes(mask):
     return filled
 
 
-def dark_region_mask(gray, fan, threshold, open_size, close_size):
+def compensate_depth(gray, fan, percentile=60, target=100.0):
+    """Even out brightness loss with depth, so deep tissue is not mistaken for fluid.
+
+    Each row is scaled so its typical in-fan brightness becomes `target`. The
+    bladder is darker than the surrounding tissue at the same depth, so it stays dark.
+    """
+    image = gray.astype(np.float32)
+    inside = np.where(fan > 0, image, np.nan)
+    valid = (fan > 0).sum(axis=1) > 0
+    reference = np.full(gray.shape[0], np.nan, dtype=np.float32)
+    reference[valid] = np.nanpercentile(inside[valid], percentile, axis=1)
+    rows = np.arange(len(reference))
+    reference = np.interp(rows, rows[valid], reference[valid]) if valid.any() else np.full_like(reference, target)
+    reference = cv2.GaussianBlur(reference.reshape(-1, 1), (1, 0), sigmaX=0, sigmaY=gray.shape[0] / 40).ravel()
+    scaled = image * (target / np.maximum(reference, 5.0))[:, None]
+    return np.clip(scaled, 0, 255).astype(np.uint8)
+
+
+def dark_region_mask(gray, fan, threshold, open_size, close_size, depth_compensation):
     smooth = cv2.medianBlur(gray, 7)
+    if depth_compensation:
+        smooth = compensate_depth(smooth, fan)
     smooth = cv2.bilateralFilter(smooth, 9, 50, 9)
 
-    if threshold is None:
+    if threshold is None and depth_compensation:
+        # After compensation typical tissue sits at ~100; fluid is well below half of that.
+        threshold = 45
+    elif threshold is None:
         inside = smooth[fan > 0]
         threshold, _ = cv2.threshold(inside.reshape(-1, 1), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask = ((smooth < threshold) & (fan > 0)).astype(np.uint8)
@@ -199,8 +223,14 @@ def segment_video(args):
                 break
             gray = crop(to_gray(frame), args.roi)
 
-            candidates = dark_region_mask(gray, fan, args.threshold, args.open_size, args.close_size)
-            mask = select_component(candidates, previous, seed, args.min_area)
+            if gray[fan > 0].mean() < args.blank_level:
+                # Blank frame (e.g. before imaging starts): no bladder, restart tracking.
+                mask = np.zeros_like(gray, dtype=np.uint8)
+                previous = smoothed = None
+            else:
+                candidates = dark_region_mask(gray, fan, args.threshold, args.open_size, args.close_size,
+                                              not args.no_depth_compensation)
+                mask = select_component(candidates, previous, seed, args.min_area)
             if mask is None:
                 # Nothing found (e.g. probe lifted): keep the last mask rather than jumping.
                 mask = previous if previous is not None else np.zeros_like(gray, dtype=np.uint8)
@@ -256,7 +286,11 @@ def main():
     parser.add_argument("--seed", type=lambda s: parse_pair(s, 2),
                         help="x,y pixel inside the bladder on the first frame (full-frame coordinates)")
     parser.add_argument("--threshold", type=int, default=None,
-                        help="fixed darkness threshold 0-255 (default: automatic Otsu)")
+                        help="darkness threshold 0-255 (default: 45 with depth compensation, else automatic Otsu)")
+    parser.add_argument("--no-depth-compensation", action="store_true",
+                        help="turn off the per-depth brightness normalisation")
+    parser.add_argument("--blank-level", type=float, default=5.0,
+                        help="frames whose mean scan brightness is below this are treated as blank")
     parser.add_argument("--min-area", type=int, default=1500, help="minimum bladder area in pixels")
     parser.add_argument("--open-size", type=int, default=7, help="opening kernel size (removes speckle)")
     parser.add_argument("--close-size", type=int, default=21, help="closing kernel size (bridges gaps)")
