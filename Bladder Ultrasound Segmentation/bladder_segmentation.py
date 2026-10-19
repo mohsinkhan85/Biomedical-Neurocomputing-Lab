@@ -108,10 +108,32 @@ def compensate_depth(gray, fan, percentile=60, target=100.0):
     return np.clip(scaled, 0, 255).astype(np.uint8)
 
 
-def dark_region_mask(gray, fan, threshold, open_size, close_size, depth_compensation):
+_edge_cache = {}
+
+
+def compensate_edges(img, fan, percentile=60, target=100.0, band=10):
+    """Brighten the sides of the fan, which ultrasound images darker than the middle."""
+    key = id(fan)
+    if key not in _edge_cache:  # distance-to-edge bands depend only on the fan: compute once
+        bins = (cv2.distanceTransform(fan, cv2.DIST_L2, 5) // band).astype(np.int32)
+        ys, xs = np.nonzero(fan[::4, ::4])  # a 1-in-16 pixel sample is enough for the statistics
+        sample = (ys * 4, xs * 4)
+        _edge_cache[key] = (bins, sample, bins[sample])
+    bins, sample, sample_bins = _edge_cache[key]
+    values = img[sample]
+    gain = np.ones(bins.max() + 1, np.float32)
+    for b in np.unique(sample_bins):
+        v = values[sample_bins == b]
+        if v.size > 20:
+            gain[b] = target / max(np.percentile(v, percentile), 5.0)
+    gain = np.minimum(gain, 3.0)  # never brighten more than 3x
+    return np.clip(img.astype(np.float32) * gain[bins], 0, 255).astype(np.uint8)
+
+
+def dark_region_mask(gray, fan, threshold, open_size, close_size, depth_compensation, tail_size=None):
     smooth = cv2.medianBlur(gray, 7)
     if depth_compensation:
-        smooth = compensate_depth(smooth, fan)
+        smooth = compensate_edges(compensate_depth(smooth, fan), fan)
     smooth = cv2.bilateralFilter(smooth, 9, 50, 9)
 
     if threshold is None and depth_compensation:
@@ -124,7 +146,10 @@ def dark_region_mask(gray, fan, threshold, open_size, close_size, depth_compensa
 
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (open_size, open_size)))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (close_size, close_size)))
-    return fill_holes(mask)
+    mask = fill_holes(mask)
+    # A large opening removes thin strips (e.g. the darker edge of the scan) but keeps the round bladder body.
+    tail = tail_size or int(0.06 * min(gray.shape)) | 1
+    return cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (tail, tail)))
 
 
 def select_component(mask, previous, seed, min_area):
@@ -229,7 +254,7 @@ def segment_video(args):
                 previous = smoothed = None
             else:
                 candidates = dark_region_mask(gray, fan, args.threshold, args.open_size, args.close_size,
-                                              not args.no_depth_compensation)
+                                              not args.no_depth_compensation, args.tail_size)
                 mask = select_component(candidates, previous, seed, args.min_area)
             if mask is None:
                 # Nothing found (e.g. probe lifted): keep the last mask rather than jumping.
@@ -288,11 +313,13 @@ def main():
     parser.add_argument("--threshold", type=int, default=None,
                         help="darkness threshold 0-255 (default: 45 with depth compensation, else automatic Otsu)")
     parser.add_argument("--no-depth-compensation", action="store_true",
-                        help="turn off the per-depth brightness normalisation")
+                        help="turn off the depth and fan-edge brightness normalisation")
     parser.add_argument("--blank-level", type=float, default=5.0,
                         help="frames whose mean scan brightness is below this are treated as blank")
     parser.add_argument("--min-area", type=int, default=1500, help="minimum bladder area in pixels")
     parser.add_argument("--open-size", type=int, default=7, help="opening kernel size (removes speckle)")
+    parser.add_argument("--tail-size", type=int, default=None,
+                        help="opening size that cuts thin dark strips off the bladder (default: 6%% of image size)")
     parser.add_argument("--close-size", type=int, default=21, help="closing kernel size (bridges gaps)")
     parser.add_argument("--smoothing", type=float, default=0.6,
                         help="temporal smoothing 0-1 (0 = off, higher = steadier but slower to react)")

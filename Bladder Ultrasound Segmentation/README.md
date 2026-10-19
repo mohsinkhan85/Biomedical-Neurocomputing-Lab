@@ -38,9 +38,9 @@ Outputs in `--out`:
 ## How it works
 
 1. **Field of view:** detects the ultrasound fan so the black screen border is ignored.
-2. **Denoising and depth compensation:** a median and a bilateral filter reduce speckle. Each image row is then scaled so that tissue at every depth has similar brightness. This stops the darker far field from being mistaken for fluid (turn it off with `--no-depth-compensation`).
+2. **Denoising and depth compensation:** a median and a bilateral filter reduce speckle. Brightness is then evened out across depth and toward the sides of the fan, which ultrasound images darker. This stops the far field and the scan edges from being mistaken for fluid (turn it off with `--no-depth-compensation`).
 3. **Thresholding:** keeps dark pixels inside the fan (`--threshold`, default 45 after compensation). Blank frames, such as those before imaging starts, give an empty mask.
-4. **Morphology:** an opening removes speckle, a closing bridges gaps, and holes are filled.
+4. **Morphology:** an opening removes speckle, a closing bridges gaps, and holes are filled. A large opening (`--tail-size`) then cuts off thin dark strips attached to the bladder.
 5. **Component selection:** on the first frame it takes the region under `--seed`, or else the largest region near the center. On later frames it takes the region that overlaps most with the previous frame's mask.
 6. **Temporal smoothing:** a moving average over frames reduces flicker (`--smoothing`).
 
@@ -55,6 +55,10 @@ Outputs in `--out`:
 | Mask has holes / ragged edge | larger `--close-size`, or `--convex` |
 | Mask flickers between frames | higher `--smoothing` (e.g. 0.8) |
 | Small bladder not detected | lower `--min-area` |
+
+## Jupyter version
+
+`bladder_segmentation_notebook.py` is the same pipeline as a single cell to paste into Jupyter. Edit the settings at the top and run it. It also has a `SHAPE` setting that draws the bladder as a `"smooth"` outline (default), a `"box"`, a `"rotated_box"`, an `"ellipse"` or the raw `"pixels"`, and it reports the bladder's length and width.
 
 ## Moving to deep learning later
 
