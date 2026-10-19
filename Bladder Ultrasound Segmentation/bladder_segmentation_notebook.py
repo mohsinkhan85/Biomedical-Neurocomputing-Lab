@@ -6,19 +6,44 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---------- Settings: change these for your video ----------
-VIDEO_PATH    = "IMG_0272.MP4"           # path to your video
+VIDEO_PATH    = "20251109_110615.MP4"           # path to your video
 OUT_DIR       = "bladder_results"        # output folder
 ROI           = (400, 225, 1360, 1040)   # x, y, w, h of the scan area (None = whole frame)
 SEED          = None                     # x, y of a point inside the bladder (None = automatic)
-PIXEL_SPACING = 0.129                    # mm per pixel (None = report in pixels)
+PIXEL_SPACING = "auto"                   # mm per pixel, "auto" = read the depth ruler, None = report in pixels
+RULER_X       = (1940, 1990)             # x range of the depth ruler's 1 cm tick marks (Handy Echo, 2048 px wide)
 THRESHOLD     = 45                       # darkness threshold after depth compensation
 MIN_AREA      = 1500                     # smallest bladder area in pixels
 OPEN_SIZE, CLOSE_SIZE = 7, 21            # morphology kernel sizes
 TAIL_SIZE     = None                     # cuts thin dark strips off the bladder (None = 6% of image size)
+NECK_RATIO    = 0.65                     # cuts off dark areas joined to the bladder by a narrow neck (0 = off)
 SMOOTHING     = 0.6                      # temporal smoothing 0-1 (higher = steadier)
 BLANK_LEVEL   = 5.0                      # frames darker than this are treated as blank
 SAVE_MASKS    = True
 SHAPE         = "smooth"        # how to draw the bladder: "box", "rotated_box", "ellipse", "smooth" or "pixels"
+
+
+def read_ruler_spacing(path, ruler_x=RULER_X, min_brightness=150):
+    """Measure mm per pixel from the 1 cm tick marks of the on-screen depth ruler."""
+    cap = cv2.VideoCapture(path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2)
+    ok, frame = cap.read()
+    cap.release()
+    if not ok:
+        return None
+    band = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)[:, ruler_x[0]:ruler_x[1]] > min_brightness
+    rows = np.where(band.sum(axis=1) >= 0.4 * (ruler_x[1] - ruler_x[0]))[0]
+    if len(rows) == 0:
+        return None
+    ticks = [g.mean() for g in np.split(rows, np.where(np.diff(rows) > 3)[0] + 1)]
+    gaps = np.diff(ticks)
+    if len(gaps) < 3:
+        return None
+    step = np.median(gaps)
+    regular = gaps[np.abs(gaps - step) < 0.1 * step]        # ignore the logo/markers that are not ticks
+    if len(regular) < 3:
+        return None
+    return 10.0 / regular.mean()                             # 10 mm per tick gap
 
 
 def crop(img, roi):
@@ -121,6 +146,28 @@ def select_component(mask, previous, seed):
     return (labels == best).astype(np.uint8)
 
 
+def cut_necks(mask):
+    """Separate the bladder from dark areas attached to it through a narrow neck.
+
+    The cut size scales with the bladder itself (radius of the largest circle that fits inside),
+    so it works for small and large bladders alike.
+    """
+    if NECK_RATIO <= 0 or not mask.any():
+        return mask
+    radius = cv2.distanceTransform(mask, cv2.DIST_L2, 5).max()
+    k = int(NECK_RATIO * radius) * 2 + 1
+    if k < 5:
+        return mask
+    opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(opened)
+    if n < 2:
+        return mask
+    body = (labels == 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])).astype(np.uint8)
+    # Grow the body back inside the original mask to restore its edges and tips, but not the cut-off part.
+    grow = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k // 2 | 1, k // 2 | 1))
+    return cv2.dilate(body, grow) & mask
+
+
 def fit_shape(mask):
     """Turn the pixel mask into a simple shape (polygon points) and its size (length, width in px)."""
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -166,6 +213,10 @@ os.makedirs(OUT_DIR, exist_ok=True)
 if SAVE_MASKS:
     os.makedirs(os.path.join(OUT_DIR, "masks"), exist_ok=True)
 
+if PIXEL_SPACING == "auto":
+    PIXEL_SPACING = read_ruler_spacing(VIDEO_PATH)
+    print("Pixel spacing from depth ruler:", f"{PIXEL_SPACING:.4f} mm/px" if PIXEL_SPACING else "not found, using pixels")
+
 fan = estimate_fan_mask(VIDEO_PATH, ROI)
 seed = (SEED[0] - ROI[0], SEED[1] - ROI[1]) if (SEED and ROI) else SEED
 cap = cv2.VideoCapture(VIDEO_PATH)
@@ -185,7 +236,9 @@ while True:
         mask, previous, smoothed = np.zeros_like(gray), None, None
     else:
         mask = select_component(dark_region_mask(gray, fan), previous, seed)
-        if mask is None:
+        if mask is not None:
+            mask = cut_necks(mask)
+        else:
             mask = previous if previous is not None else np.zeros_like(gray)
 
     smoothed = mask.astype(np.float32) if smoothed is None else SMOOTHING * smoothed + (1 - SMOOTHING) * mask

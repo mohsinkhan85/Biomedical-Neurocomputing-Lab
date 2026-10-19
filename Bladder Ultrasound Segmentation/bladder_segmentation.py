@@ -11,7 +11,7 @@ in every frame and tracks it through the video:
        brightness loss with depth, so deep tissue does not look like fluid.
     3. Threshold dark pixels inside the fan.
     4. Clean the mask with morphology and fill holes.
-    5. Pick the bladder component: the one under --seed, or the best large,
+    5. Pick the bladder component (cutting off dark areas joined through a narrow neck): the one under --seed, or the best large,
        central component in the first frame, then the component that overlaps
        most with the previous frame's mask.
     6. Smooth the mask over time to reduce flicker.
@@ -40,6 +40,29 @@ def parse_pair(text, n):
     if len(values) != n:
         raise argparse.ArgumentTypeError(f"expected {n} comma-separated integers, got '{text}'")
     return tuple(values)
+
+
+def read_ruler_spacing(path, ruler_x=(1940, 1990), min_brightness=150):
+    """Measure mm per pixel from the 1 cm tick marks of the on-screen depth ruler."""
+    cap = cv2.VideoCapture(path)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) // 2)
+    ok, frame = cap.read()
+    cap.release()
+    if not ok:
+        return None
+    band = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)[:, ruler_x[0]:ruler_x[1]] > min_brightness
+    rows = np.where(band.sum(axis=1) >= 0.4 * (ruler_x[1] - ruler_x[0]))[0]
+    if len(rows) == 0:
+        return None
+    ticks = [g.mean() for g in np.split(rows, np.where(np.diff(rows) > 3)[0] + 1)]
+    gaps = np.diff(ticks)
+    if len(gaps) < 3:
+        return None
+    step = np.median(gaps)
+    regular = gaps[np.abs(gaps - step) < 0.1 * step]        # ignore the logo/markers that are not ticks
+    if len(regular) < 3:
+        return None
+    return 10.0 / regular.mean()                             # 10 mm per tick gap
 
 
 def to_gray(frame):
@@ -182,6 +205,28 @@ def select_component(mask, previous, seed, min_area):
     return (labels == max(candidates, key=score)).astype(np.uint8)
 
 
+def cut_necks(mask, neck_ratio):
+    """Separate the bladder from dark areas attached to it through a narrow neck.
+
+    The cut size scales with the bladder itself (radius of the largest circle that fits inside),
+    so it works for small and large bladders alike.
+    """
+    if neck_ratio <= 0 or not mask.any():
+        return mask
+    radius = cv2.distanceTransform(mask, cv2.DIST_L2, 5).max()
+    k = int(neck_ratio * radius) * 2 + 1
+    if k < 5:
+        return mask
+    opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(opened)
+    if n < 2:
+        return mask
+    body = (labels == 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])).astype(np.uint8)
+    # Grow the body back inside the original mask to restore its edges and tips, but not the cut-off part.
+    grow = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k // 2 | 1, k // 2 | 1))
+    return cv2.dilate(body, grow) & mask
+
+
 def measure(mask, pixel_spacing):
     area_px = int(mask.sum())
     row = {"area_px": area_px, "centroid_x": "", "centroid_y": "", "width_px": "", "height_px": "",
@@ -223,6 +268,13 @@ def segment_video(args):
     if args.save_masks:
         os.makedirs(os.path.join(args.out, "masks"), exist_ok=True)
 
+    if args.pixel_spacing == "auto":
+        args.pixel_spacing = read_ruler_spacing(args.video, args.ruler_x)
+        print("Pixel spacing from depth ruler:",
+              f"{args.pixel_spacing:.4f} mm/px" if args.pixel_spacing else "not found, using pixels")
+    elif args.pixel_spacing is not None:
+        args.pixel_spacing = float(args.pixel_spacing)
+
     fan = estimate_fan_mask(args.video, args.roi)
     seed = None
     if args.seed:
@@ -256,6 +308,8 @@ def segment_video(args):
                 candidates = dark_region_mask(gray, fan, args.threshold, args.open_size, args.close_size,
                                               not args.no_depth_compensation, args.tail_size)
                 mask = select_component(candidates, previous, seed, args.min_area)
+                if mask is not None:
+                    mask = cut_necks(mask, args.neck_ratio)
             if mask is None:
                 # Nothing found (e.g. probe lifted): keep the last mask rather than jumping.
                 mask = previous if previous is not None else np.zeros_like(gray, dtype=np.uint8)
@@ -320,12 +374,16 @@ def main():
     parser.add_argument("--open-size", type=int, default=7, help="opening kernel size (removes speckle)")
     parser.add_argument("--tail-size", type=int, default=None,
                         help="opening size that cuts thin dark strips off the bladder (default: 6%% of image size)")
+    parser.add_argument("--neck-ratio", type=float, default=0.65,
+                        help="cut off dark areas joined to the bladder by a narrow neck (0 = off)")
     parser.add_argument("--close-size", type=int, default=21, help="closing kernel size (bridges gaps)")
     parser.add_argument("--smoothing", type=float, default=0.6,
                         help="temporal smoothing 0-1 (0 = off, higher = steadier but slower to react)")
     parser.add_argument("--convex", action="store_true", help="replace the mask with its convex hull")
-    parser.add_argument("--pixel-spacing", type=float, default=None,
-                        help="mm per pixel, to report area in mm^2 / cm^2")
+    parser.add_argument("--pixel-spacing", default=None,
+                        help="mm per pixel, or 'auto' to read the on-screen depth ruler")
+    parser.add_argument("--ruler-x", type=lambda s: parse_pair(s, 2), default=(1940, 1990),
+                        help="x range of the depth ruler's 1 cm ticks (for --pixel-spacing auto)")
     parser.add_argument("--save-masks", action="store_true", help="write one mask PNG per frame")
     parser.add_argument("--show", action="store_true", help="show the result live (needs a display)")
     segment_video(parser.parse_args())

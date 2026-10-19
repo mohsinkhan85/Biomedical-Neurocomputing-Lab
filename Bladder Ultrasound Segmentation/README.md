@@ -20,11 +20,11 @@ python bladder_segmentation.py my_scan.mp4 --roi 120,60,500,420 --seed 360,250 -
 
 ### Example: Handy Echo screen recording
 
-Recordings from the Handy Echo app include the app's menus and text around the image. Crop to the scan with `--roi`. The depth scale on screen (5 cm ≈ 389 px at 2048×1536) gives about 0.129 mm/px:
+Recordings from the Handy Echo app include the app's menus and text around the image. Crop to the scan with `--roi`. `--pixel-spacing auto` reads the 1 cm ticks of the on-screen depth ruler, so measurements stay correct when the depth setting changes (0.128 mm/px at depth 14, 0.146 mm/px at depth 16):
 
 ```bash
 python bladder_segmentation.py IMG_0272.MP4 --out results \
-    --roi 400,225,1360,1040 --seed 1346,694 --pixel-spacing 0.129
+    --roi 400,225,1360,1040 --pixel-spacing auto
 ```
 
 Outputs in `--out`:
@@ -41,8 +41,9 @@ Outputs in `--out`:
 2. **Denoising and depth compensation:** a median and a bilateral filter reduce speckle. Brightness is then evened out across depth and toward the sides of the fan, which ultrasound images darker. This stops the far field and the scan edges from being mistaken for fluid (turn it off with `--no-depth-compensation`).
 3. **Thresholding:** keeps dark pixels inside the fan (`--threshold`, default 45 after compensation). Blank frames, such as those before imaging starts, give an empty mask.
 4. **Morphology:** an opening removes speckle, a closing bridges gaps, and holes are filled. A large opening (`--tail-size`) then cuts off thin dark strips attached to the bladder.
-5. **Component selection:** on the first frame it takes the region under `--seed`, or else the largest region near the center. On later frames it takes the region that overlaps most with the previous frame's mask.
-6. **Temporal smoothing:** a moving average over frames reduces flicker (`--smoothing`).
+5. **Neck cutting:** dark areas joined to the bladder through a narrow neck are cut off. The cut size scales with the bladder (`--neck-ratio`).
+6. **Component selection:** on the first frame it takes the region under `--seed`, or else the largest region near the center. On later frames it takes the region that overlaps most with the previous frame's mask.
+7. **Temporal smoothing:** a moving average over frames reduces flicker (`--smoothing`).
 
 ## Tuning tips
 
