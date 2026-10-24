@@ -100,21 +100,40 @@ leakage-free split and compares them on the same 6,000 real test records:
 | Add logistic regression | A strong, interpretable baseline on these mostly binary features |
 
 ```bash
-python run_improved.py                          # all models, ~1 h on CPU
+python run_improved.py                          # all models, ~45 min on 4 CPUs
 python run_improved.py --models XGBoost LogReg DT --no-baseline   # ~2 min
 ```
 
 Writes `results/improved/comparison.csv`, `roc_improved.png` and confusion
 matrices.
 
-IMPROVED_PLACEHOLDER
+Results of `python run_improved.py` on the full dataset (6,000 real test
+records, 3,000 per class; training 179,024 and validation 44,757 real records):
+
+| Model | Paper setup: Acc / Recall / F1 / AUC (%) | Improved: Acc / Recall / F1 / AUC (%) |
+|---|---|---|
+| DT | 57.40 / 18.53 / 30.32 / 57.40 | **74.90 / 78.90 / 75.87 / 82.50** |
+| SVM | 70.78 / 60.17 / 67.31 / 81.06 | **75.98 / 80.37 / 76.99 / 83.67** |
+| XGBoost | 61.58 / 30.47 / 44.23 / 74.31 | **76.00 / 82.77 / 77.52 / 83.99** |
+| LogReg | — | 76.00 / 80.33 / 77.00 / 83.70 |
+| CNN | 66.85 / 48.70 / 59.50 / 77.58 | **75.80 / 81.73 / 77.16 / 83.74** |
+| NN | 64.48 / 40.07 / 53.01 / 74.67 | **76.00 / 81.17 / 77.18 / 83.80** |
+| MLP | 63.05 / 34.17 / 48.04 / 72.53 | **75.70 / 81.90 / 77.12 / 83.89** |
+
+Every model improves; the largest gains are in recall (heart disease cases
+found). All improved models converge to about 76% accuracy and 0.84 AUC,
+which is about the best this dataset supports: BRFSS answers are
+self-reported survey data. The 93–99% scores reported in the paper come
+from leakage between training and test data (see "Evaluation protocols"),
+not from better models.
 
 ## Results
 
-See `results/paper/tables/` and `results/strict/tables/`. Summary of the test
-set (Table 4) from our full run:
-
-RESULTS_PLACEHOLDER
+`python run_experiments.py` writes Tables 3–5 and 7 to `results/paper/tables/`
+(and to `results/strict/tables/` with `--protocol strict`). With the paper
+protocol the code reproduces the paper's pattern, e.g. on a 10% sample
+HS_DT ≈ 99% and HS_XGBoost ≈ 98% test accuracy. On real, unseen patients
+the same models score far lower; see the table in "Improved pipeline".
 
 ## Notes and differences from the paper
 
