@@ -271,19 +271,10 @@ unseen test set (Protocol B).}
 
 \begin{figure}[t]
 \centering
-\begin{subfigure}{\linewidth}
-  \centering
-  \includegraphics[width=0.85\linewidth]{figures/improved_learning_curve_MLP.png}
-  \caption{MLP}
-\end{subfigure}
-\begin{subfigure}{\linewidth}
-  \centering
-  \includegraphics[width=0.85\linewidth]{figures/improved_learning_curve_NN.png}
-  \caption{NN}
-\end{subfigure}
-\caption{Training and validation accuracy and loss of the improved DL
-models; training stops early once the validation loss no longer
-improves.}
+\includegraphics[width=\linewidth]{figures/improved_learning_curves.png}
+\caption{Training and validation accuracy (top) and loss (bottom) of the
+improved DL models; training stops early once the validation loss no longer
+improves, and the weights of the best epoch (dashed line) are restored.}
 \label{fig:lcB}
 \end{figure}
 

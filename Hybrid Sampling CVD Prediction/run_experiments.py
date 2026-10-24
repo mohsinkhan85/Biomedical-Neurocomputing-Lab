@@ -67,8 +67,10 @@ def set_seeds(seed):
     random.seed(seed)
     np.random.seed(seed)
     try:
-        from tensorflow import keras
-        keras.utils.set_random_seed(seed)
+        import tensorflow as tf
+        tf.keras.utils.set_random_seed(seed)
+        # Make repeated runs give identical DL results.
+        tf.config.experimental.enable_op_determinism()
     except ImportError:
         pass
 

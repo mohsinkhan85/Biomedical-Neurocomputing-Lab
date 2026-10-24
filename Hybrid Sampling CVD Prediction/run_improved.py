@@ -11,7 +11,8 @@ else, and only the training data is used for fitting.
               the validation set (Youden's J)
 
 Outputs (under --out): comparison.csv, roc_improved.png, a confusion
-matrix per improved model, learning curves of the improved DL models and,
+matrix per improved model, learning curves of the improved DL models
+(PNG, and the per-epoch history as CSV) and,
 with --cv, cv_improved.csv (5-fold cross-validation of the improved models
 on the real training pool, threshold tuned inside every fold).
 
@@ -98,6 +99,8 @@ def main():
             cm, os.path.join(args.out, f"confusion_matrix_{name}.png"),
             title=f"Improved {name} Confusion Matrix (Test)")
         if model.history:
+            pd.DataFrame(model.history).rename_axis("epoch").to_csv(
+                os.path.join(args.out, f"learning_curve_{name}.csv"))
             plots.plot_learning_curves(
                 model.history, f"Improved {name}",
                 os.path.join(args.out, f"learning_curve_{name}.png"))

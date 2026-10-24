@@ -14,6 +14,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.ticker  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
@@ -70,6 +71,48 @@ def plot_improved(path):
     plt.close(fig)
 
 
+def plot_learning_curves(path, run_dir=os.path.join(RESULTS, "improved_cv"),
+                         models=("CNN", "NN", "MLP")):
+    """Training and validation accuracy (top) and loss (bottom) per epoch of
+    the improved DL models; the dashed line marks the epoch with the lowest
+    validation loss, whose weights early stopping restores."""
+    fig, axes = plt.subplots(2, len(models), figsize=(4 * len(models), 6.2),
+                             squeeze=False)
+    for col, name in enumerate(models):
+        history = pd.read_csv(os.path.join(run_dir, f"learning_curve_{name}.csv"))
+        epochs = history["epoch"] + 1
+        best = epochs[history["val_loss"].idxmin()]
+        for row, (metric, label) in enumerate((("accuracy", "Accuracy"),
+                                               ("loss", "Loss"))):
+            ax = axes[row, col]
+            ax.plot(epochs, history[metric], color=METRIC_COLORS[0],
+                    linewidth=2, label="Training")
+            ax.plot(epochs, history[f"val_{metric}"], color=METRIC_COLORS[1],
+                    linewidth=2, label="Validation")
+            ax.axvline(best, color=INK_MUTED, linestyle="--", linewidth=1,
+                       label="Best epoch (weights restored)")
+            if row == 0:
+                ax.set_title(name, fontsize=12, color=INK)
+            if col == 0:
+                ax.set_ylabel(label, color=INK_MUTED)
+            if row == 1:
+                ax.set_xlabel("Epoch", color=INK_MUTED)
+            ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
+            ax.grid(True, color=GRID, linewidth=0.8)
+            ax.set_axisbelow(True)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+            for side in ("left", "bottom"):
+                ax.spines[side].set_color(INK_MUTED)
+            ax.tick_params(colors=INK_MUTED)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False,
+               fontsize=10, bbox_to_anchor=(0.5, 1.03))
+    fig.tight_layout()
+    fig.savefig(path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 def _fmt(value):
     return f"{value:.2f}"
 
@@ -116,6 +159,7 @@ def main():
     if os.path.exists(os.path.join(RESULTS, "improved_cv", "cv_improved.csv")):
         write_cv_table(os.path.join(TABLES, "cv_improved.tex"))
     plot_improved(os.path.join(FIGURES, "improved_results.png"))
+    plot_learning_curves(os.path.join(FIGURES, "improved_learning_curves.png"))
     copies = {
         "eda/fig2_distribution_before_sampling.png": "paper",
         "eda/fig3_age_before_sampling.png": "paper",
@@ -127,8 +171,6 @@ def main():
         "confusion_matrix_XGBoost.png": "improved_cv",
         "confusion_matrix_LogReg.png": "improved_cv",
         "confusion_matrix_MLP.png": "improved_cv",
-        "learning_curve_MLP.png": "improved_cv",
-        "learning_curve_NN.png": "improved_cv",
     }
     for name, run in copies.items():
         target = os.path.basename(name)
