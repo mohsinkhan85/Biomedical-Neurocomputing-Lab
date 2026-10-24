@@ -3,8 +3,10 @@ the performance of the HS models under the resample-before-split protocol
 (Protocol A). Section~\ref{sec:leak} analyses why these results do not
 transfer to new patients. Section~\ref{sec:resB} evaluates the same models
 and the improved pipeline on real, held-out records (Protocol B), including
-an ablation study and five-fold cross-validation, and
-Section~\ref{sec:compare} compares the findings with existing studies. All
+an ablation study and five-fold cross-validation.
+Section~\ref{sec:compare} compares the findings with existing studies,
+including the external evaluation on clinical data, and
+Section~\ref{sec:limits} discusses the limitations. All
 experiments use a fixed random state of 42 and can be reproduced with the
 released code.
 
@@ -143,10 +145,12 @@ out before sampling. Performance drops sharply: accuracy falls to
 under Protocol A, is close to chance level (AUC 0.574) because the records
 it memorised do not recur among new patients. All HS models are also very
 conservative on real data: their recall ranges from 18.5\% (DT) to 60.2\%
-(SVM), so most CVD cases are missed. Because ENN removed the borderline
-negatives from the training data, the models learn that only clear-cut
-profiles are negative and place the default decision threshold of 0.5 far
-from where it would be on the real population.
+(SVM), so most CVD cases are missed. This follows from the changes that HS
+makes to the training data (Section~\ref{sec:hs}): ENN keeps only the most
+clear-cut heart disease cases (40.3\% with a past stroke, compared with
+16.6\% among real patients), so the models learn that only such profiles
+are positive and classify most real patients with less typical answers as
+negative.
 
 \begin{table}[t]
 \centering
@@ -211,8 +215,9 @@ same problem, but tuning does so without altering the data. Third, using all
 from 0.823 to 0.835: features such as sex, income, BMI and education carry
 predictive information that a univariate correlation ranking misses.
 Fourth, regularisation (shallow, early-stopped boosting and a depth-limited
-tree) prevents the models from memorising individual records; it turns the
-DT from a near-random classifier into a competitive model (AUC 0.825).
+tree) prevents the models from memorising individual records; together
+with the other changes, it turns the DT from a near-random classifier into a
+competitive model (AUC 0.825).
 
 \subsubsection{The improved pipeline}
 
@@ -344,17 +349,18 @@ reaches 89.7\% accuracy, so the accuracies of about 90\% reported at the
 natural prevalence mainly reflect the class imbalance, whereas our accuracy
 is measured on a balanced test set.
 
-\paragraph{Cleveland dataset.} Most published studies, including four in
-Table~\ref{tab:literature}, use the UCI Cleveland heart disease
-data~\cite{detrano}: 303 hospital patients described by 13 clinical
-measurements such as chest-pain type, resting ECG, maximum exercise heart
-rate, exercise-induced ST depression and thallium scintigraphy. To compare
-on equal terms, we applied the improved pipeline, unchanged, to this dataset
-(PMLB version~\cite{pmlb}; the 6 patients with missing values were removed,
-leaving 297, of whom 137 have heart disease). Categorical variables were
-one-hot encoded, and the models were evaluated with five repetitions of
-stratified five-fold cross-validation; in every fold, early stopping and
-threshold tuning used only the training portion. CLEVELAND_RESULTS
+\paragraph{Cleveland dataset.} Four studies in Table~\ref{tab:literature}
+use the clinical Cleveland data. Applied unchanged to this dataset, as
+described in Section~\ref{sec:cleveland}, the improved pipeline reaches
+80.1--81.3\% accuracy and an AUC of 0.893--0.900 for SVM, XGBoost, LR and
+the three DL models (the depth-limited DT, whose leaf size of 50 records was
+chosen for the large BRFSS data, reaches 72.7\%). These accuracies are
+slightly below the lowest published Cleveland result in the table (82.5\%)
+and well below the highest (95.9\%). The variation between folds, however,
+is large: the accuracy of LR on individual test folds of 59--60 patients
+ranges from 71.2\% to 90.0\%, so single-split results on this dataset are
+uncertain by several percentage points, and differences of a few points
+between studies are within this range.
 
 \paragraph{Other datasets.} The remaining studies use other clinical
 datasets (a CVD dataset, a Beijing hypertension cohort and the KNHANES
@@ -365,8 +371,9 @@ Two factors explain why studies on clinical data report higher accuracy
 than any model trained on BRFSS. First, clinical measurements carry far
 more information about coronary disease than self-reported survey answers:
 on Cleveland, the same pipeline that reaches an AUC of 0.84 on BRFSS
-achieves CLEVELAND_AUC. Second, accuracies estimated on a few dozen test
-patients vary by several percentage points between random splits, and
+achieves an AUC of about 0.90. Second, accuracies estimated on a few dozen
+test patients vary by several percentage points between random splits, as
+our repeated cross-validation shows, and
 several studies do not state whether resampling or feature selection was
 performed before the data were split; as Section~\ref{sec:leak} shows, this
 choice alone can change the accuracy of the same model on the same data from
@@ -379,8 +386,9 @@ in \%. Proposed results are leakage-free: BRFSS on the real, balanced
 held-out test set (Protocol B); Cleveland as mean $\pm$ standard deviation
 of 5$\times$5-fold cross-validation.}
 \label{tab:literature}
-\scriptsize
-\setlength{\tabcolsep}{2.5pt}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
 \begin{tabular}{lllccccc}
 \toprule
 Study & Dataset ($n$) & Method & Acc. & Prec. & Rec. & F1 & AUC \\
@@ -402,7 +410,7 @@ M. Bhatt et al.~\cite{bhatt} & CVD dataset & XGBoost & 87.02 & 89.62 & 82.11 & 8
 W. Chang et al.~\cite{chang} & Beijing dataset & Hybrid XGBSVM & 91.70 & -- & -- & -- & 93.90 \\
 T. Amarbayasgalan et al.~\cite{amarbayasgalan} & KNHANES (25,340) & Two DNNs & 89.20 & 91.10 & 92.00 & 91.50 & 97.54 \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 
 \smallskip
 \parbox{\linewidth}{\scriptsize $^{a}$Measured at the natural prevalence
@@ -412,6 +420,7 @@ $^{b}$Preprint.}
 \end{table}
 
 \subsection{Limitations}
+\label{sec:limits}
 
 The BRFSS data are self-reported and cross-sectional: the target records a
 past diagnosis of coronary heart disease or myocardial infarction, so the
@@ -423,4 +432,6 @@ year without external validation, and the calibration of the predicted
 probabilities was not assessed. The balanced test set makes accuracy
 comparable across protocols, but precision and F1 depend on prevalence, and
 the cross-validation results indicate the values to expect in a general
-population.
+population. The Cleveland evaluation used the hyper-parameters chosen for
+BRFSS without re-tuning, which favours a fair comparison over the best
+attainable score on that dataset.

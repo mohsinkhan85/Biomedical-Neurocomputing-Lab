@@ -21,7 +21,7 @@ cross-validation confirms. The technical observations of this study are:
   \item The evaluation protocol dominates the reported performance. Any
     resampling, cleaning or duplication must be applied after the test
     data have been set aside, and only to the training data; otherwise
-    accuracy on imbalanced clinical data can be overstated by more than
+    accuracy on imbalanced health data can be overstated by more than
     40 percentage points.
   \item On real data, hybrid sampling did not improve discrimination: it
     lowered the AUC of XGBoost from 0.823 to 0.743. Class weighting and a
@@ -32,6 +32,13 @@ cross-validation confirms. The technical observations of this study are:
     regression, SVM, XGBoost and the three DL models all reach an AUC of
     0.83--0.84, so simple and interpretable models are a sound choice for
     this task.
+  \item Compared on equal terms, the improved pipeline attains the highest
+    AUC reported on the same BRFSS data (0.840), and applied unchanged to
+    the clinical Cleveland data it reaches an AUC of about 0.90. Higher
+    accuracies reported on clinical datasets largely reflect more
+    informative clinical measurements and small, variable test sets, and
+    cannot be taken as evidence of a better method without a comparable,
+    leakage-free evaluation.
   \item At the real prevalence of about 10\%, a model that detects 80\% of
     CVD cases still produces three to four false alarms for every true case
     (precision about 22\%). Survey-based models are therefore suited to

@@ -83,11 +83,13 @@ patients, to 74.9--76.0\% accuracy, 78.8--82.8\% recall and an AUC of
 0.825--0.840 (Decision Tree accuracy 57.4\% $\rightarrow$ 74.9\%, XGBoost
 recall 30.5\% $\rightarrow$ 82.8\%), with five-fold cross-validation
 confirming these values (AUC 0.82--0.84). Simple models such as logistic
-regression perform on par with deep networks. The results show that the
-evaluation protocol, not the choice of model, dominates reported
-performance on imbalanced clinical data, and they provide realistic
-expectations and a reproducible, open-source baseline for CVD screening
-from survey data.
+regression perform on par with deep networks. On the same BRFSS data the
+improved pipeline attains the highest AUC reported to date, and applied
+unchanged to the clinical Cleveland dataset it reaches 80--81\% accuracy and
+an AUC of 0.89--0.90. The results show that the evaluation protocol, not the
+choice of model, dominates reported performance on imbalanced health data,
+and they provide realistic expectations and a reproducible, open-source
+baseline for CVD screening from survey data.
 }}
 
 \medskip
@@ -131,7 +133,12 @@ interpretation, transparency, and reliability in medical
 contexts~\cite{currie}. To overcome these limitations, hybrid models
 combining DL with other computational techniques have been developed,
 offering enhanced explainability, predictive accuracy, and clinical
-relevance.
+relevance. Such approaches have been applied across cardiovascular and
+related health problems, for example to study how peripheral muscle action
+limits exercise capacity in children with congenital heart
+defects~\cite{chlif}, to monitor fetal health with hybrid DL
+algorithms~\cite{hussain}, and, combined with blockchain, to secure
+e-healthcare data~\cite{khan}.
 
 A second, less discussed challenge is class imbalance. In population health
 surveys only a small fraction of respondents report CVD (about 10\% in the
@@ -148,26 +155,23 @@ on both sides of the split, and cleaning steps can remove difficult cases
 from the test set. The resulting estimates can be far higher than the
 performance a clinic would observe.
 
-In order to improve CVD prediction models and methodologies, this research
-builds on recent studies. For example, recent studies investigated the
-effect of peripheral muscle action on cardio-exercise capacity in children
-with congenital heart defects~\cite{chlif}, as well as fetal health
-monitoring with hybrid DL algorithms~\cite{hussain}. Furthermore, another
-innovative application of Blockchain and ML integration in ensuring
-healthcare data security holds immense potential for e-Healthcare
-solutions~\cite{khan}. Our study combines DL techniques (MLP, CNN, NN) with
-ML algorithms (DT, SVM, XGBoost), feature selection and HS, and evaluates
-them under two protocols: the commonly used resample-before-split protocol
-and a leakage-free protocol in which the test data are held out before any
-sampling. A comprehensive list of abbreviations and their corresponding
+This study examines this problem for CVD prediction from population survey
+data. We combine three DL models (CNN, NN, MLP) and three ML models (DT, SVM,
+XGBoost) with correlation-based feature selection and HS, and evaluate them
+under two protocols: the commonly used resample-before-split protocol and a
+leakage-free protocol in which the test data are held out before any
+sampling. We then identify which design choices limit performance on real
+patients, propose an improved pipeline, and compare it with published
+studies on the same and on clinical data. 
+A comprehensive list of abbreviations and their corresponding
 descriptions can be found in Table~\ref{tab:abbrev}. The key contributions of
 this study are as follows:
 
 \begin{itemize}
-  \item A pipeline for CVD prediction was implemented, incorporating data
+  \item We implement a typical HS pipeline for CVD prediction, with data
     preprocessing, feature selection based on correlation, hybrid sampling
-    (SMOTEENN followed by ROS) and systematic evaluation of six DL and ML
-    models.
+    (SMOTEENN followed by ROS) and six DL and ML models, and reproduce its
+    reported accuracy.
   \item We show, quantitatively, that resampling the dataset before
     splitting it leaks information into the test set: all positive test
     records have identical copies in the training set and the ENN step
@@ -181,16 +185,21 @@ this study are as follows:
     that raises every model to about 76\% accuracy, 80\% recall and an AUC of
     0.84, confirmed by five-fold cross-validation, and an ablation study
     that attributes the gain to each change.
+  \item We compare the improved pipeline with published studies on equal
+    terms: on the same BRFSS data it attains the highest reported AUC, and
+    applied unchanged to the clinical Cleveland dataset it reaches an AUC
+    of 0.89--0.90.
   \item The complete code is released as open source so that every number
     and figure in this paper can be reproduced.
 \end{itemize}
 
 The primary goal of this research is to provide a reliable assessment of
-how well ML models can forecast CVD from survey data, and to give practical
+how well ML models can identify individuals with CVD from survey data, and to give practical
 guidance on building and evaluating such models. The structure of this
 paper is as follows: Section~\ref{sec:lit} offers an overview of the related
 literature. Section~\ref{sec:method} explains the methodology, including both
-evaluation protocols and the improved pipeline.
+evaluation protocols, the improved pipeline and the external evaluation on
+clinical data.
 Section~\ref{sec:arch} describes the models and evaluation metrics.
 Section~\ref{sec:results} presents and discusses the results, and
 Section~\ref{sec:conclusion} concludes with a summary of the key findings and
@@ -239,165 +248,105 @@ HS-DT, HS-SVM, HS-XGBoost & HS combined with DT, SVM, XGBoost \\
 \section{LITERATURE REVIEW}
 \label{sec:lit}
 
-The literature reviewed in this study highlights key findings related to CVD
-prediction. One study proposed a solution for determining heart disease risk
-in highly imbalanced datasets using machine learning tools~\cite{fernando}. The
-authors investigated several approaches, including cost-sensitive learning
-algorithms, ensemble methods, and oversampling techniques. The experimental
-results demonstrated that ensemble methods and cost-sensitive learning
-algorithms were particularly effective in predicting CVD risk.
+The literature relevant to this study falls into three strands: ML models
+for CVD prediction, methods for handling class imbalance, and the
+evaluation pitfalls that arise when the two are combined.
 
-Building upon existing research, a method aimed at enhancing the survival
-prognosis of heart failure patients through the integration of SMOTE and
-advanced data mining techniques was proposed in~\cite{ishaq}. This approach
-tackles the issue of class imbalance in heart failure datasets by
-generating synthetic instances for the underrepresented class using SMOTE.
-A range of classification algorithms, including KNN, NB, DT, XGBoost, and
-Random Forests were evaluated for heart failure prognosis, achieving
-prediction accuracy ranging from 85\% to 94\%. The study underscores the
-application of this methodology to improve both sensitivity and prediction
-performance for survival outcomes.
+\subsection{Machine Learning for CVD Prediction}
 
-As highlighted in~\cite{singh2015}, data imbalance is a pervasive issue in
-classification tasks, and numerous strategies and algorithms have been
-proposed to mitigate its effects. The paper reviews the advantages and
-limitations of under-sampling, oversampling, and hybrid techniques. It
-presents a comprehensive overview of the existing approaches, stressing the
-importance of choosing the most suitable method based on the dataset's
-inherent characteristics. The authors conclude that addressing data
-imbalance in classification remains a critical area for further research
-and that the development of novel, more effective solutions is necessary.
+Many studies have applied classical ML to clinical heart disease data. Li et
+al.~\cite{li} investigated ML techniques for detecting heart disease within
+e-healthcare frameworks, combining classifiers such as logistic regression
+and KNN with feature selection to extract the most relevant features, and
+reported promising accuracy and precision on a real-world dataset. Ahmad et
+al.~\cite{ahmad} assessed logistic regression, random forests and SVM for the
+swift diagnosis of CVD and showed that hyperparameter tuning with
+GridSearchCV improves diagnostic accuracy. Ramesh et al.~\cite{ramesh}
+developed predictive models with logistic regression, DT and SVM and
+evaluated them on real-world data with precision, recall and F1-score,
+emphasising that the algorithm should be chosen to suit the characteristics
+of the data.
 
-Batista et al.~\cite{batista} examined diverse methodologies for mitigating
-class imbalance in machine learning datasets. The analysis evaluated the
-efficacy of under-sampling, over-sampling, and hybrid strategies, including
-SMOTE combined with ENN, in enhancing model training. The outcomes
-underscored the critical role of balanced datasets in boosting classifier
-performance, particularly in terms of precision and generalization. This
-study serves as a pivotal reference for employing hybrid sampling methods in
-contemporary machine learning applications, such as CVD prediction.
+Several studies combine multiple models or feature selection steps. Mohan
+et al.~\cite{mohan} integrated a hybrid random forest with a linear model
+(HRFLM) and reported an accuracy of 88.4\%, outperforming the individual
+algorithms. Kavitha et al.~\cite{kavitha} introduced a hybrid of Random
+Forest and DT that achieved an accuracy of 88.7\%. Ali et al.~\cite{ali}
+integrated the Relief and LASSO feature selection algorithms with an
+ensemble of classifiers to isolate the most clinically influential risk
+indicators, improving sensitivity and specificity. In the field of clinical
+decision support, Fitriyani et al.~\cite{fitriyani} introduced the Heart
+Disease Prediction Model (HDPM), which balances the training data with
+SMOTE-ENN before classification with XGBoost, and reported an accuracy of
+95.90\% on the Cleveland heart disease dataset.
 
-Extending the examination of feature selection and classification
-methodologies, Ali et al.~\cite{ali} developed an effective machine learning
-framework for the early detection of cardiovascular diseases. Their
-methodology integrated advanced feature selection algorithms, including
-Relief and LASSO, with an ensemble of classification models to isolate the
-most clinically influential risk indicators and enhance diagnostic
-accuracy. The study demonstrated significant improvements in predictive
-sensitivity and specificity across medical records, underscoring the
-critical importance of feature optimization and balanced dataset evaluation
-for reliable clinical decision support.
+Hybrid and deep models have also been proposed for related clinical
+problems. A DNN incorporating Glomerular Filtration Rate and kidney injury
+markers surpassed traditional ML approaches for the early detection of
+Chronic Kidney Disease (CKD)~\cite{singh2022}, and hybrid parallel
+classifiers~\cite{singhjain}, two-phase feature selection with adaptive
+SVM~\cite{jain2019} and further hybrid approaches~\cite{jain2020} have been
+developed for chronic disease classification. Beyond classification,
+Qureshi et al.~\cite{qureshi} optimised the transfer of kinetic energy from
+aortic blood flow in mechanical circulatory support devices through computer
+modelling and exhaustive search, showing a potential route to higher
+cardiac output in heart failure patients. In their systematic review of ML
+for CVD prediction from medical big data, Azmi et al.~\cite{azmi} concluded
+that data quality, model interpretability and scalability must be addressed
+before such technologies can be widely implemented.
 
-A noteworthy study~\cite{li} investigates the implementation of ML techniques
-for detecting heart diseases within e-healthcare frameworks. The
-methodology combines conventional approaches with an ensemble of
-cutting-edge classifiers, such as logistic regression and KNN, to extract
-the most relevant features. When tested on a real-world dataset, the model
-delivered promising performance, achieving notable accuracy and precision
-metrics. This work highlights the potential of ML in advancing digital
-healthcare systems, particularly for the precise and timely diagnosis of
-cardiovascular conditions.
+\subsection{Class Imbalance and Resampling}
 
-In the field of clinical decision support systems, Fitriyani et al.
-introduced the Heart Disease Prediction Model (HDPM) as a robust forecasting
-tool. Various machine learning algorithms, including SVM and KNN, were
-applied to construct a dependable and precise predictive model. Notably,
-HDPM surpassed other existing models, demonstrating an accuracy rate between
-90\% and 94\% in diagnosing heart disease, with a sensitivity of
-95\%~\cite{fitriyani}.
+Because CVD cases are usually a minority, class imbalance is a recurring
+challenge. Singh and Purohit~\cite{singh2015} reviewed under-sampling,
+oversampling and hybrid techniques and stressed that the method should match
+the characteristics of the dataset. Batista et al.~\cite{batista} compared
+these strategies, including SMOTE combined with ENN, and showed that
+balancing the training data can improve classifier performance; their work
+is a standard reference for hybrid sampling. In the cardiovascular domain,
+Ishaq et al.~\cite{ishaq} used SMOTE to generate synthetic instances of the
+minority class for heart failure survival prediction and reported accuracies
+of 85\% to 94\% with KNN, NB, DT, XGBoost and Random Forests. Most closely
+related to this study, Fernando et al.~\cite{fernando} used the same BRFSS
+2015 heart disease dataset, compared seven classifiers with eight
+resampling methods, and found that the hybrid methods SMOTEENN and
+SMOTETomek performed best.
 
-In furtherance of earlier research on ML for heart disease detection, a study
-was conducted to investigate ML algorithms that could facilitate the swift
-diagnosis of CVDs~\cite{ahmad}. This study assessed the performance of
-logistic regression, random forests, and SVM in detecting cardiac issues.
-Additionally, the influence of hyperparameter tuning through GridSearchCV on
-model performance was examined. The results indicated that improvements in
-algorithmic techniques and hyperparameter optimization contributed
-significantly to enhanced diagnostic accuracy in medical practice.
+\subsection{Data Leakage in Model Evaluation}
 
-Ramesh et al.~\cite{ramesh} focused on developing predictive models for heart
-diseases through the application of ML techniques. Logistic regression,
-decision trees (DT), and support vector machines (SVM) were employed for
-prediction. These models were assessed using real-world datasets, with
-performance evaluated based on precision, recall, and F1-scores. The results
-demonstrated that ML algorithms were effective in forecasting heart disease
-outcomes, with the authors emphasizing the significance of selecting an
-algorithm that aligns well with the specific characteristics of the data to
-ensure optimal performance.
+Several authors have warned that preprocessing steps applied before data
+partitioning can leak information from the test set into model training and
+inflate reported performance~\cite{kaufman,kapoor}. Kapoor and
+Narayanan~\cite{kapoor} found such leakage in hundreds of published ML-based
+studies across many fields. Santos et al.~\cite{santos} showed specifically
+that oversampling before cross-validation produces over-optimistic
+estimates on imbalanced data, and recommended that resampling be applied
+only to the training folds.
 
-A methodology to enhance the performance of mechanical circulatory support
-devices was introduced by Qureshi et al.~\cite{qureshi}. This approach
-focuses on optimizing the transfer of kinetic energy from the forward-moving
-aortic blood flow. An exhaustive search technique was also employed to
-select the optimal cuff inflation and deflation timings. The feasibility and
-effectiveness of this method were explored through computer modeling and
-mathematical calculations. The findings suggest that optimizing kinetic
-energy transfer in mechanical circulatory support devices could
-significantly improve their functionality and increase cardiac output,
-presenting a new potential method to enhance the performance of the heart in
-patients with heart failure.
+\subsection{Research Gap}
 
-Azmi et al.~\cite{azmi} carried out a comprehensive review of AI applications
-in CVD prediction using large medical datasets. The objective of their
-review was to identify key trends and areas by conducting an extensive
-literature analysis. Among their discoveries, they illustrated how ML could
-be employed to effectively utilize big data for precise and efficient CVD
-prediction and early-stage diagnosis. The review highlighted the
-application of various ML algorithms, data pre-processing techniques, and
-evaluation metrics commonly used in CVD prediction studies. However, the
-authors emphasized that issues related to data quality, model
-interpretability, and scalability must be addressed before ML-based
-technologies can be widely implemented in the field of CVD prediction.
-
-In a distinct study published in Diagnostics~\cite{singh2022}, a novel DNN
-model was introduced for the early identification and prediction of Chronic
-Kidney Disease (CKD). By incorporating Glomerular Filtration Rate (GFR) and
-kidney injury markers, this model surpassed traditional ML approaches,
-achieving perfect accuracy in classification tests. In a subsequent study, a
-hybrid parallel classification model for diagnosing CKD was developed,
-aiming to further enhance accuracy through innovative computational
-techniques~\cite{singhjain}. A two-phase hybrid approach that integrates
-feature selection and Adaptive SVM for chronic disease classification was
-proposed in~\cite{jain2019}, and a further hybrid approach for chronic disease
-classification was presented in~\cite{jain2020}. These studies explore the
-integration of multiple methodologies to improve the precision and
-efficiency of disease classification models.
-
-One study utilized a mixed-method approach incorporating ML to achieve high
-prediction accuracy for heart diseases~\cite{mohan}. By integrating a hybrid
-random forest with a linear model (HRFLM), the predictive accuracy of the
-heart disease model was significantly enhanced. The researchers reported an
-accuracy rate of 88.4\%, outperforming individual algorithms. In a separate
-effort to forecast CVD, Kavitha et al.~\cite{kavitha} introduced a hybrid
-prediction method integrating Random Forest and DT, which achieved an
-accuracy of 88.7\%.
-
-Several authors have warned that preprocessing steps applied before
-data partitioning, including oversampling, can leak information from the
-test set into model training and inflate reported
-performance~\cite{kaufman,kapoor}. Santos et al.~\cite{santos} showed in
-particular that oversampling before cross-validation produces
-over-optimistic estimates on imbalanced data, and recommended that
-resampling be applied only to the training folds. These findings motivate
-the two evaluation protocols compared in this study.
-
-The methodologies reviewed in this study represent substantial advancements
-in CVD prediction. Collectively, these studies indicate a promising
-trajectory for improving CVD prediction accuracy and early detection.
-However, the reported accuracies are obtained on different datasets and,
-often, under different evaluation protocols, which makes them difficult to
-compare. A balanced evaluation that separates genuine predictive power from
-evaluation artefacts is necessary to guide future efforts.
+Hybrid sampling is widely recommended for imbalanced CVD data, and the
+studies above report accuracies of 85--96\%. These figures, however, are
+obtained on different datasets, often small ones, and many studies do not
+state whether resampling or feature selection was applied before or after
+the data were split. It therefore remains unclear how much of the reported
+performance reflects genuine predictive power and how much is an artefact of
+the evaluation protocol. This study addresses this gap by evaluating the
+same HS pipeline under both protocols on a large survey dataset, quantifying
+the resulting bias, and deriving a leakage-free pipeline that is compared
+with published results on equal terms.
 
 \section{PROPOSED METHODOLOGY}
 \label{sec:method}
 
-This section outlines the methodology for CVD prediction. The data analysis
-is implemented in Python using pandas, scikit-learn, imbalanced-learn,
-XGBoost and TensorFlow/Keras. The overall pipeline is shown in
-Fig.~\ref{fig:method}; its key design choice is the point at which sampling
-is applied relative to the train/test split, which defines the two
-evaluation protocols compared throughout the paper.
+This section describes the data, the preprocessing and feature selection,
+hybrid sampling, the two evaluation protocols, the improved pipeline and the
+external evaluation on clinical data. The analysis is implemented in Python
+using pandas, scikit-learn, imbalanced-learn, XGBoost and TensorFlow/Keras.
+The overall pipeline is shown in Fig.~\ref{fig:method}; its key design
+choice is the point at which sampling is applied relative to the train/test
+split, which defines the two evaluation protocols compared throughout the
+paper.
 
 \begin{figure}[t]
 \centering
@@ -412,7 +361,7 @@ evaluation protocols compared throughout the paper.
   arr/.style={-{Stealth[length=2mm]}, thick},
   lbl/.style={font=\small\bfseries, anchor=west}]
   % Protocol A
-  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (as in prior work)};
+  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (original pipeline)};
   \node[box, below=4mm of la.south west, anchor=north west] (a1) {Dataset};
   \node[box, right=of a1] (a2) {Feature\\selection};
   \node[box, right=of a2] (a3) {Hybrid sampling\\(SMOTEENN+ROS)\\of \emph{all} data};
@@ -425,19 +374,22 @@ evaluation protocols compared throughout the paper.
   \node[box, below=4mm of lb.south west, anchor=north west] (b1) {Dataset};
   \node[good, right=of b1] (b2) {Test set\\3,000/class\\(real records)};
   \node[good, right=of b2] (b3) {Train 80\%\\Valid. 20\%\\(real records)};
-  \node[box, right=of b3] (b4) {Sampling or\\class weights on\\\emph{training} only};
+  \node[box, right=of b3] (b3f) {Features\\(9 selected\\or all 21)};
+  \node[box, right=of b3f] (b4) {Sampling or\\class weights on\\\emph{training} only};
   \node[box, right=of b4] (b5) {Train models,\\tune threshold\\on validation};
-  \draw[arr] (b1) -- (b2); \draw[arr] (b2) -- (b3); \draw[arr] (b3) -- (b4);
-  \draw[arr] (b4) -- (b5);
+  \draw[arr] (b1) -- (b2); \draw[arr] (b2) -- (b3); \draw[arr] (b3) -- (b3f);
+  \draw[arr] (b3f) -- (b4); \draw[arr] (b4) -- (b5);
   \node[box, below=6mm of b5] (b6) {Evaluate on\\held-out test set};
   \draw[arr] (b5) -- (b6);
   \draw[arr, dashed] (b2.south) |- (b6.west);
 \end{tikzpicture}}
-\caption{Proposed methodology. (a) In the resample-before-split protocol used
-by the original pipeline, synthetic, duplicated and cleaned records are
-created before the test set is drawn. (b) In the leakage-free protocol the
-test and validation sets contain only real records that are never resampled
-or seen during training.}
+\caption{Overview of the methodology and the two evaluation protocols. (a)
+In the resample-before-split protocol of the original pipeline, synthetic,
+duplicated and cleaned records are created before the test set is drawn.
+(b) In the leakage-free protocol, used for the original HS models (nine
+selected features, hybrid sampling) and for the improved pipeline (all 21
+features, class weights), the test and validation sets contain only real
+records that are never resampled or seen during training.}
 \label{fig:method}
 \end{figure}
 
@@ -450,8 +402,8 @@ originally compiled by the Behavioral Risk Factor Surveillance System
 representing responses from the 2015 BRFSS survey conducted by the Centers
 for Disease Control and Prevention (CDC). It includes 22 columns, one of
 which is the target variable, ``HeartDiseaseorAttack''. This binary target
-variable indicates the presence or absence of a heart attack, where ``0''
-signifies no history of coronary heart disease (CHD) or myocardial
+variable indicates whether a respondent has ever been told they had coronary
+heart disease or a heart attack, where ``0'' signifies no history of coronary heart disease (CHD) or myocardial
 infarction (MI) and ``1'' indicates a reported history of CHD or MI. The raw
 data comprise 229,787 records without heart disease and 23,893 records with
 heart disease. A comprehensive description of the dataset, including the
@@ -495,8 +447,8 @@ Income & 1, 2 = Lower than \$15,000; 3, 4 = \$15,000 to less than \$25,000; 5 = 
 
 \subsection{Data Preprocessing}
 
-This study employs an exploratory data analysis (EDA) approach. Upon loading
-the dataset using the Pandas library, duplicate entries are removed to
+The dataset is loaded with the pandas library and explored before
+modelling. Duplicate entries are removed to
 maintain data integrity, leaving 229,781 unique records with 22 columns.
 The presence of missing data is assessed, and the analysis confirms that no
 missing values exist. The target variable is strongly imbalanced: the
@@ -505,9 +457,11 @@ instances of individuals without heart disease.
 
 Fig.~\ref{fig:dist}(a) depicts the distribution of the target variable and,
 among the heart disease cases, the proportions of individuals who have had a
-stroke or who smoke. The age distribution of individuals with and without
-heart disease is compared in Fig.~\ref{fig:age}(a); the prevalence of heart
-disease increases steeply with age.
+stroke (16.6\%) or who smoke (62.0\%). The age distribution of individuals
+with and without heart disease is compared in Fig.~\ref{fig:age}(a); the
+prevalence of heart disease increases steeply with age. Panels (b) of both
+figures show the data after hybrid sampling and are discussed in
+Section~\ref{sec:hs}.
 
 \begin{figure}[t]
 \centering
@@ -559,6 +513,7 @@ models weigh them; the effect of this choice is quantified in the ablation
 study.
 
 \subsection{Hybrid Sampling}
+\label{sec:hs}
 
 Hybrid sampling combines SMOTEENN with ROS. SMOTE first synthesises new
 minority-class instances by interpolating between a minority record and its
@@ -567,6 +522,16 @@ every record whose class disagrees with the majority of its three nearest
 neighbours, from both classes. Finally, ROS duplicates minority records
 until both classes have equal size. The HS methodology is implemented with
 the imbalanced-learn library (random state 42).
+
+Hybrid sampling balances the classes (Fig.~\ref{fig:dist}(b)), but it also
+changes who the records describe. Because ENN deletes records that resemble
+the opposite class, the remaining heart disease cases are the most
+clear-cut ones: among them, the share of individuals who have had a stroke
+rises from 16.6\% to 40.3\%. Conversely, the remaining non-CVD records are
+younger on average (mean age category 7.85 before and 7.34 after sampling;
+Fig.~\ref{fig:age}(b)), consistent with the removal of older healthy
+respondents who resemble patients. Section~\ref{sec:results}
+shows how these changes affect performance on real patients.
 
 \subsection{Evaluation Protocols}
 \label{sec:protocols}
@@ -594,8 +559,10 @@ training folds.
 \subsection{Improved Pipeline}
 \label{sec:improved}
 
-Based on the analysis in Section~\ref{sec:results}, we propose an improved
-pipeline that is evaluated under Protocol B. It makes four changes:
+Motivated by the leakage analysis and the ablation study in
+Section~\ref{sec:results}, we propose an improved pipeline that is
+evaluated under Protocol B. It makes four changes to the original HS
+pipeline:
 \begin{enumerate}
   \item \textbf{All 21 features} are used instead of the nine
     correlation-selected ones.
@@ -617,6 +584,22 @@ pipeline that is evaluated under Protocol B. It makes four changes:
     validation set is used.
 \end{enumerate}
 
+\subsection{External Evaluation on Clinical Data}
+\label{sec:cleveland}
+
+Most published CVD studies use the UCI Cleveland heart disease
+data~\cite{detrano}, 303 hospital patients described by 13 clinical
+measurements, including chest-pain type, resting ECG, maximum exercise heart
+rate, exercise-induced ST depression and thallium scintigraphy. To compare
+with these studies on equal terms, the improved pipeline is applied,
+unchanged, to this dataset (PMLB version~\cite{pmlb}). The 6 patients with
+missing values are removed, leaving 297, of whom 137 have heart disease, and
+the categorical variables are one-hot encoded. Because a single split of
+such a small dataset yields test sets of about 60 patients, the models are
+evaluated with five repetitions of stratified five-fold cross-validation; in
+every fold, early stopping and threshold tuning use only the training
+portion.
+
 \section{DL AND ML ARCHITECTURE ANALYSIS}
 \label{sec:arch}
 
@@ -636,6 +619,14 @@ curve.
 \paragraph{XGBoost.} XGBoost builds an ensemble of gradient-boosted trees,
 each correcting the errors of the previous ones. The HS pipeline uses the
 library defaults.
+
+\paragraph{Logistic regression.} LR models the log-odds of CVD as a linear
+function of the standardised features. It is used only in the improved
+pipeline, as an interpretable baseline.
+
+The settings of all models in the improved pipeline (class weights, depth
+limit, early stopping and threshold tuning) are given in
+Section~\ref{sec:improved}.
 
 \subsection{DL Models}
 
