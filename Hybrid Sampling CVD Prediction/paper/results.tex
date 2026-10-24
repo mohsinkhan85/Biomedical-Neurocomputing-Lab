@@ -168,14 +168,6 @@ Model & Acc. & Prec. & Rec. & F1 & AUC & Acc. & Prec. & Rec. & F1 & AUC \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/comparison_paper_vs_improved.png}
-\caption{Accuracy, recall and AUC on the real, unseen test set (Protocol B)
-for the original HS pipeline and the improved pipeline.}
-\label{fig:comparison}
-\end{figure}
-
 \subsubsection{Ablation study}
 
 To identify which design choices limit performance on real data, we varied
@@ -224,8 +216,9 @@ DT from a near-random classifier into a competitive model (AUC 0.825).
 
 \subsubsection{The improved pipeline}
 
-Table~\ref{tab:protoB} (right) and Fig.~\ref{fig:comparison} show that the
-improved pipeline raises every model on real, unseen records. Accuracy
+Table~\ref{tab:protoB} (right) shows that the improved pipeline raises
+every model on real, unseen records, and Fig.~\ref{fig:improved}
+summarises its results. Accuracy
 increases to 74.9--76.0\%, recall to 78.8--82.8\% and the AUC to
 0.825--0.840. The largest gains concern recall: the improved XGBoost
 detects 82.8\% of CVD cases, compared with 30.5\% for the original HS
@@ -240,6 +233,14 @@ epochs and then levelling off; training stops three epochs after the last
 improvement and the best weights are restored, which prevents
 over-fitting. The training loss is computed with class weights and is
 therefore not directly comparable to the unweighted validation loss.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/improved_results.png}
+\caption{Accuracy, recall and AUC of the improved models on the real,
+unseen test set (Protocol B).}
+\label{fig:improved}
+\end{figure}
 
 \begin{figure}[t]
 \centering

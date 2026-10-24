@@ -31,7 +31,7 @@ AUC 0.84, confirmed by 5-fold cross-validation).
 | 2 Literature review | Added paragraph and 3 references on data leakage (Kaufman 2012, Kapoor & Narayanan 2023, Santos 2018) |
 | 3 Methodology | New Fig. 1 (both protocols); dataset numbers updated to the full Kaggle file (229,781 unique records); hybrid sampling described precisely; new Sections 3.5 (protocols) and 3.6 (improved pipeline) |
 | 4 Architecture | Exact model architectures and hyper-parameters; LR added |
-| 5 Results | Table 3: Protocol A results (reproduced + originally reported); new leakage analysis (Table 4); Table 5 + Fig. 5: Protocol B, original vs improved; Table 6: ablation; Figs. 6–8: improved ROC, confusion matrices, learning curves; Table 7: leakage-free 5-fold CV (replaces original Tables 5 and 7, which shared the leakage); Table 8: literature comparison with leakage-free results; limitations |
+| 5 Results | Table 3: Protocol A results (reproduced + originally reported); new leakage analysis (Table 4); Table 5: Protocol B, original vs improved; Fig. 5: improved results; Table 6: ablation; Figs. 6–8: improved ROC, confusion matrices, learning curves; Table 7: leakage-free 5-fold CV (replaces original Tables 5 and 7, which shared the leakage); Table 8: literature comparison with leakage-free results; limitations |
 | 6 Conclusion | Rewritten |
 | Code availability | Added link to the code repository |
 

@@ -22,8 +22,8 @@ RESULTS = os.path.join(HERE, "results")
 FIGURES = os.path.join(HERE, "paper", "figures")
 TABLES = os.path.join(HERE, "paper", "tables")
 
-# Categorical slots 1 and 2 of the reference palette; text stays in ink colours.
-SERIES = {"Paper setup": "#2a78d6", "Improved": "#eb6834"}
+# Categorical slots 1-3 of the reference palette; text stays in ink colours.
+METRIC_COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
 INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 MODELS = ["DT", "SVM", "XGBoost", "CNN", "NN", "MLP"]
 METRICS = [("Accuracy (%)", "Accuracy"), ("Recall (%)", "Recall"),
@@ -38,35 +38,33 @@ def comparison_table():
     return paper, improved
 
 
-def plot_comparison(path):
-    paper, improved = comparison_table()
-    x = np.arange(len(MODELS))
-    width = 0.38
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
-    for ax, (column, title) in zip(axes, METRICS):
-        for offset, (label, frame) in zip((-width / 2, width / 2),
-                                          (("Paper setup", paper),
-                                           ("Improved", improved))):
-            values = frame.loc[MODELS, column].to_numpy()
-            bars = ax.bar(x + offset, values, width * 0.94, label=label,
-                          color=SERIES[label], edgecolor="white", linewidth=1)
-            for bar, value in zip(bars, values):
-                ax.text(bar.get_x() + bar.get_width() / 2, value + 1,
-                        f"{value:.0f}", ha="center", va="bottom",
-                        fontsize=7.5, color=INK_MUTED)
-        ax.set_title(title, fontsize=12, color=INK)
-        ax.set_xticks(x, MODELS, fontsize=9, color=INK)
-        ax.set_ylim(0, 100)
-        ax.yaxis.grid(True, color=GRID, linewidth=0.8)
-        ax.set_axisbelow(True)
-        for side in ("top", "right", "left"):
-            ax.spines[side].set_visible(False)
-        ax.spines["bottom"].set_color(INK_MUTED)
-        ax.tick_params(axis="y", colors=INK_MUTED, length=0)
-    axes[0].set_ylabel("Percent (real, unseen test set)", color=INK_MUTED)
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False,
-               fontsize=10, bbox_to_anchor=(0.5, 1.04))
+def plot_improved(path):
+    """Accuracy, recall and AUC of the improved models on the real test set."""
+    _, improved = comparison_table()
+    models = MODELS + ["LogReg"]
+    x = np.arange(len(models))
+    width = 0.27
+    fig, ax = plt.subplots(figsize=(10, 4.2))
+    for i, ((column, label), color) in enumerate(zip(METRICS, METRIC_COLORS)):
+        values = improved.loc[models, column].to_numpy()
+        bars = ax.bar(x + (i - 1) * width, values, width * 0.94, label=label,
+                      color=color, edgecolor="white", linewidth=1)
+        for bar, value in zip(bars, values):
+            ax.text(bar.get_x() + bar.get_width() / 2, value + 1,
+                    f"{value:.0f}", ha="center", va="bottom", fontsize=7.5,
+                    color=INK_MUTED)
+    ax.set_xticks(x, [m.replace("LogReg", "LR") for m in models], fontsize=10,
+                  color=INK)
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("Percent (real, unseen test set)", color=INK_MUTED)
+    ax.yaxis.grid(True, color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for side in ("top", "right", "left"):
+        ax.spines[side].set_visible(False)
+    ax.spines["bottom"].set_color(INK_MUTED)
+    ax.tick_params(axis="y", colors=INK_MUTED, length=0)
+    ax.legend(loc="upper center", ncol=3, frameon=False, fontsize=10,
+              bbox_to_anchor=(0.5, 1.12))
     fig.tight_layout()
     fig.savefig(path, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -117,7 +115,7 @@ def main():
     write_test_table(os.path.join(TABLES, "protocol_b_test.tex"))
     if os.path.exists(os.path.join(RESULTS, "improved_cv", "cv_improved.csv")):
         write_cv_table(os.path.join(TABLES, "cv_improved.tex"))
-    plot_comparison(os.path.join(FIGURES, "comparison_paper_vs_improved.png"))
+    plot_improved(os.path.join(FIGURES, "improved_results.png"))
     copies = {
         "eda/fig2_distribution_before_sampling.png": "paper",
         "eda/fig3_age_before_sampling.png": "paper",
