@@ -335,13 +335,14 @@ organised by dataset.
 
 \paragraph{Same dataset (BRFSS 2015).} Deng et al.~\cite{deng} trained a
 LightGBM model on the same survey data and obtained an AUC of 0.811 with
-90.6\% accuracy. All three proposed models in the table exceed this AUC:
-XGBoost reaches 0.840 with a recall of 82.8\%, and logistic regression and
-the MLP reach 0.837 and 0.838. Accuracy is not comparable across these studies: at the natural
-prevalence of 10.3\%, a classifier that always predicts ``no CVD'' already
-reaches 89.7\% accuracy, so the accuracies of about 90\% reported at the
-natural prevalence mainly reflect the class imbalance, whereas our accuracy
-is measured on a balanced test set.
+90.6\% accuracy. This accuracy was measured at the natural prevalence of
+about 10\%, where a trivial classifier that always predicts ``no CVD''
+already reaches 89.7\% (reference row in Table~\ref{tab:literature}), so it
+mainly reflects the class imbalance; our accuracy, in contrast, is measured
+on a balanced test set, where the same trivial classifier scores 50\%. On
+the AUC, which is comparable across both settings, all three proposed models
+in the table exceed Deng et al.: XGBoost reaches 0.840 with a recall of
+82.8\%, and logistic regression and the MLP reach 0.837 and 0.838.
 
 \paragraph{Cleveland dataset.} Four studies in Table~\ref{tab:literature}
 use the clinical Cleveland data. Applied unchanged to this dataset, as
@@ -376,7 +377,9 @@ choice alone can change the accuracy of the same model on the same data from
 \begin{table}[t]
 \centering
 \caption{Comparison with existing studies, grouped by dataset. All values
-in \%. Proposed results are leakage-free: BRFSS on the real, balanced
+in \%. Accuracy, precision and F1 depend on the prevalence of CVD in the
+test data, so the AUC is the metric that is comparable across studies.
+Proposed results are leakage-free: BRFSS on the real, balanced
 held-out test set (Protocol B); Cleveland as mean $\pm$ standard deviation
 of 5$\times$5-fold cross-validation.}
 \label{tab:literature}
@@ -389,6 +392,7 @@ Study & Dataset ($n$) & Method & Acc. & Prec. & Rec. & F1 & AUC \\
 \midrule
 \multicolumn{8}{l}{\emph{Same dataset: BRFSS 2015 (self-reported survey)}} \\
 L. Deng et al.~\cite{deng} & BRFSS 2015 & LightGBM & 90.61$^{a}$ & 73.89$^{a}$ & -- & -- & 81.11 \\
+\emph{Reference: always ``no CVD''} & BRFSS (229,781) & Majority class & 89.68$^{a}$ & -- & 0.00 & -- & 50.00 \\
 \inputrows{tables/literature_brfss.tex}
 \midrule
 \multicolumn{8}{l}{\emph{Cleveland heart disease data (clinical measurements)}} \\
