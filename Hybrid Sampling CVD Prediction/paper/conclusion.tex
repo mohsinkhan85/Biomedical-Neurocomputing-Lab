@@ -1,14 +1,12 @@
 This study combined hybrid sampling (SMOTEENN followed by ROS) with three
 DL models (CNN, NN, MLP) and three classical ML models (DT, SVM, XGBoost)
-for CVD prediction from the 2015 BRFSS survey, and evaluated them under two
-protocols. When the full dataset is resampled before it is split, the
-models report 94.7--99.8\% test accuracy. We showed that this performance
-is an artefact of data leakage: every positive test record has an exact
-copy in the training set, and the ENN step removes a fifth of the real
-non-CVD records, the borderline cases, before the test set is drawn. On
-6,000 real records held out before any sampling, the same models reach
-only 57.4--70.8\% accuracy, and the fully grown decision tree that appeared
-best falls to near chance level.
+for CVD prediction from the 2015 BRFSS survey. On 6,000 real records held
+out before any sampling, these models reach only 57.4--70.8\% accuracy and
+miss most CVD cases, because hybrid sampling removes borderline records and
+duplicates the remaining minority records, leaving only the most clear-cut
+CVD cases in the training data. When the data are instead resampled before
+they are split, the same models appear to reach 94.7--99.8\% accuracy, a
+known consequence of data leakage that our results confirm.
 
 We therefore proposed a leakage-free pipeline that uses all available
 features, handles class imbalance with class weights instead of synthetic
@@ -18,11 +16,10 @@ validation set. On real, unseen records it improves every model, to about
 cross-validation confirms. The technical observations of this study are:
 
 \begin{itemize}
-  \item The evaluation protocol dominates the reported performance. Any
-    resampling, cleaning or duplication must be applied after the test
-    data have been set aside, and only to the training data; otherwise
-    accuracy on imbalanced health data can be overstated by more than
-    40 percentage points.
+  \item As is known, any resampling, cleaning or duplication must be
+    applied after the test data have been set aside, and only to the
+    training data; on imbalanced health data, failing to do so overstated
+    the accuracy of the decision tree by more than 40 percentage points.
   \item On real data, hybrid sampling did not improve discrimination: it
     lowered the AUC of XGBoost from 0.823 to 0.743. Class weighting and a
     tuned decision threshold address imbalance without distorting the data.

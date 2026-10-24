@@ -66,17 +66,13 @@ a minority in such data, studies commonly rebalance the classes with
 hybrid sampling (HS), here SMOTEENN followed by Random Oversampling (ROS).
 This study evaluates HS with three deep learning (DL) models (CNN, NN, MLP)
 and three classical ML models (Decision Tree, SVM, XGBoost) on 229,781
-unique records of the 2015 BRFSS survey, under two evaluation protocols.
-When the whole dataset is resampled before it is split, as in many
-published pipelines, the models reach 94.7--99.8\% test accuracy (Decision
-Tree 99.8\%, XGBoost 98.2\%, MLP 98.5\%). We show that these scores are an
-artefact of data leakage: every positive test record has an identical copy
-in the training set, and the edited-nearest-neighbour step removes 19.9\%
-of the real non-CVD records, precisely the borderline cases, before the
-test set is drawn. When the test set (6,000 real records) is held out
-before any sampling, the same models reach only 57.4--70.8\% accuracy and
-an area under the ROC curve (AUC) of 0.57--0.81. We therefore propose a
-leakage-free pipeline that uses all 21 survey features, class weighting
+unique records of the 2015 BRFSS survey, with 6,000 real test records held
+out before any sampling. On these unseen records the HS models reach only
+57.4--70.8\% accuracy and an area under the ROC curve (AUC) of 0.57--0.81,
+and they miss most CVD cases (recall 18.5--60.2\%): by deleting borderline
+records and duplicating the remaining minority records, HS leaves only the
+most clear-cut CVD cases in the training data. We therefore propose a
+pipeline that uses all 21 survey features, class weighting
 instead of synthetic resampling, regularised models and a decision
 threshold tuned on a validation set. It improves every model on unseen
 patients, to 74.9--76.0\% accuracy, 78.8--82.8\% recall and an AUC of
@@ -87,10 +83,10 @@ regression perform on par with deep networks. On the same BRFSS data the
 improved pipeline exceeds the AUC of a published LightGBM model (0.840 vs.
 0.811), and applied
 unchanged to the clinical Cleveland dataset it reaches 80--81\% accuracy and
-an AUC of 0.89--0.90. The results show that the evaluation protocol, not the
-choice of model, dominates reported performance on imbalanced health data,
-and they provide realistic expectations and a reproducible, open-source
-baseline for CVD screening from survey data.
+an AUC of 0.89--0.90. The results show that, for CVD screening from
+imbalanced survey data, how class imbalance is handled matters more than
+the choice of model, and they provide realistic expectations and a
+reproducible, open-source baseline.
 }}
 
 \medskip
@@ -159,9 +155,9 @@ performance a clinic would observe.
 This study examines this problem for CVD prediction from population survey
 data. We combine three DL models (CNN, NN, MLP) and three ML models (DT, SVM,
 XGBoost) with correlation-based feature selection and HS, and evaluate them
-under two protocols: the commonly used resample-before-split protocol and a
-leakage-free protocol in which the test data are held out before any
-sampling. We then identify which design choices limit performance on real
+with a leakage-free protocol in which the test data are held out before any
+sampling; for reference, we also report the commonly used
+resample-before-split protocol. We then identify which design choices limit performance on real
 patients, propose an improved pipeline, and compare it with published
 studies on the same and on clinical data. 
 A comprehensive list of abbreviations and their corresponding
@@ -170,19 +166,15 @@ this study are as follows:
 
 \begin{itemize}
   \item We implement a typical HS pipeline for CVD prediction (hereafter the
-    baseline HS pipeline), with data
-    preprocessing, feature selection based on correlation, hybrid sampling
-    (SMOTEENN followed by ROS) and six DL and ML models, and show that it
-    reaches 94.7--99.8\% accuracy when the data are resampled before they
-    are split.
-  \item We show, quantitatively, that resampling the dataset before
-    splitting it leaks information into the test set: all positive test
-    records have identical copies in the training set and the ENN step
-    removes 19.9\% of the real negative records, which inflates accuracy to
-    94.7--99.8\%.
-  \item Under a leakage-free protocol we report the realistic performance
-    of the same models on 6,000 real, unseen records (57.4--70.8\%
-    accuracy, AUC 0.57--0.81).
+    baseline HS pipeline), with data preprocessing, feature selection based
+    on correlation, hybrid sampling (SMOTEENN followed by ROS) and six DL
+    and ML models, and evaluate it on 6,000 real records held out before any
+    sampling (57.4--70.8\% accuracy, AUC 0.57--0.81).
+  \item We analyse why hybrid sampling degrades performance on real
+    patients: it removes borderline records and duplicates the remaining
+    minority records, so that, for example, the share of CVD cases with a
+    past stroke rises from 16.6\% to 40.3\% and the models miss most real
+    CVD cases.
   \item We propose an improved, leakage-free pipeline (all features, class
     weighting, regularised models, validation-tuned decision threshold)
     that raises every model to about 76\% accuracy, 80\% recall and an AUC of
