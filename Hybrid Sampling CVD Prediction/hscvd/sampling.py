@@ -10,7 +10,12 @@ from .data import split_xy
 
 
 def resample(X, y, method, random_state=RANDOM_STATE):
-    """Balance (X, y) with SMOTEENN, ROS or hybrid sampling (SMOTEENN then ROS)."""
+    """Balance (X, y) with SMOTEENN, ROS or hybrid sampling (SMOTEENN then ROS).
+
+    method="none" returns the data unchanged.
+    """
+    if method == "none":
+        return X, y
     if method == "smoteenn":
         return SMOTEENN(random_state=random_state).fit_resample(X, y)
     if method == "ros":

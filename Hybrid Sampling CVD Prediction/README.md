@@ -85,6 +85,30 @@ training data (and, in cross-validation, only the training folds). It shows
 how the models do on real patients they have never seen, and we recommend
 reporting it next to the paper numbers.
 
+## Improved pipeline (`run_improved.py`)
+
+Tested under the strict protocol, the paper's design choices hurt the models
+on real, unseen patients. `run_improved.py` trains both setups on the same
+leakage-free split and compares them on the same 6,000 real test records:
+
+| Change | Why |
+|---|---|
+| Use all 21 features instead of the 9 correlation-selected ones | Pearson correlation misses useful signal (Sex, Income, BMI, Education, ...); XGBoost AUC 0.823 → 0.835 |
+| No resampling; class weights instead (`class_weight="balanced"`, `scale_pos_weight`) | SMOTEENN's synthetic points and ENN cleaning distort the data; XGBoost AUC with HS 0.743 vs. 0.823 without |
+| Tune the decision cut-off on the validation set (Youden's J) | With imbalanced data the right cut-off is not 0.5; this choice drives accuracy and F1 much more than resampling does |
+| Regularise the models: depth-limited DT (`max_depth=8`, `min_samples_leaf=50`), XGBoost with shallow trees, subsampling and early stopping on validation AUC, DL models with early stopping | A fully grown tree memorises records (57.4% on real patients) |
+| Add logistic regression | A strong, interpretable baseline on these mostly binary features |
+
+```bash
+python run_improved.py                          # all models, ~1 h on CPU
+python run_improved.py --models XGBoost LogReg DT --no-baseline   # ~2 min
+```
+
+Writes `results/improved/comparison.csv`, `roc_improved.png` and confusion
+matrices.
+
+IMPROVED_PLACEHOLDER
+
 ## Results
 
 See `results/paper/tables/` and `results/strict/tables/`. Summary of the test

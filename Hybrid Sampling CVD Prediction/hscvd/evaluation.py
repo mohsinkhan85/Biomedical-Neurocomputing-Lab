@@ -1,8 +1,10 @@
 """Metrics (Eqs. 1-5) and k-fold cross-validation (Tables 5 and 7)."""
 
+import numpy as np
 import pandas as pd
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
-                             precision_score, recall_score, roc_auc_score)
+                             precision_score, recall_score, roc_auc_score,
+                             roc_curve)
 from sklearn.model_selection import StratifiedKFold
 
 from .config import N_FOLDS, RANDOM_STATE
@@ -19,6 +21,16 @@ def compute_metrics(y_true, y_pred, y_score):
         "F1 Score (%)": 100 * f1_score(y_true, y_pred, zero_division=0),
         "AUC (%)": 100 * roc_auc_score(y_true, y_score),
     }
+
+
+def tune_threshold(model, df):
+    """Set model.threshold to the cut-off that maximises Youden's J
+    (sensitivity + specificity - 1) on df, usually the validation set."""
+    X, y = split_xy(df)
+    fpr, tpr, thresholds = roc_curve(y, model.predict_scores(X))
+    best = np.argmax(tpr - fpr)
+    model.threshold = float(min(thresholds[best], 1.0))
+    return model.threshold
 
 
 def evaluate(model, df):

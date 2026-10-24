@@ -4,11 +4,15 @@ Every model exposes the same interface:
     fit(X_train, y_train, X_val=None, y_val=None)
     predict_scores(X) -> continuous score for the positive class (used for ROC/AUC)
     predict(X)        -> 0/1 labels
+
+Setting model.threshold (see evaluation.tune_threshold) makes predict() use
+predict_scores(X) >= threshold instead of the default decision rule.
 """
 
 import numpy as np
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
@@ -23,9 +27,15 @@ class SklearnModel:
     def __init__(self, estimator):
         self.estimator = estimator
         self.history = None
+        self.threshold = None
 
     def fit(self, X_train, y_train, X_val=None, y_val=None):
-        self.estimator.fit(np.asarray(X_train), np.asarray(y_train))
+        kwargs = {}
+        early_stopping = getattr(self.estimator, "early_stopping_rounds", None)
+        if early_stopping and X_val is not None:
+            kwargs = {"eval_set": [(np.asarray(X_val), np.asarray(y_val))],
+                      "verbose": False}
+        self.estimator.fit(np.asarray(X_train), np.asarray(y_train), **kwargs)
         return self
 
     def predict_scores(self, X):
@@ -35,6 +45,8 @@ class SklearnModel:
         return self.estimator.decision_function(X)
 
     def predict(self, X):
+        if self.threshold is not None:
+            return (self.predict_scores(X) >= self.threshold).astype(int)
         return self.estimator.predict(np.asarray(X)).astype(int)
 
 
@@ -112,14 +124,21 @@ class DLModel:
     """MinMax scaling -> autoencoder feature extraction -> CNN / NN / MLP."""
 
     def __init__(self, name, epochs=None, batch_size=BATCH_SIZE,
-                 ae_epochs=AUTOENCODER_EPOCHS, use_autoencoder=True, verbose=0):
+                 ae_epochs=AUTOENCODER_EPOCHS, use_autoencoder=True,
+                 balanced=False, early_stopping=False, verbose=0):
         self.name = name
         self.epochs = epochs or DL_EPOCHS[name]
         self.batch_size = batch_size
         self.ae_epochs = ae_epochs
         self.use_autoencoder = use_autoencoder
+        # balanced: weight classes inversely to their frequency instead of
+        # relying on resampled data. early_stopping: keep the epoch with the
+        # lowest validation loss.
+        self.balanced = balanced
+        self.early_stopping = early_stopping
         self.verbose = verbose
         self.history = None
+        self.threshold = None
 
     def _features(self, X):
         X = self.scaler.transform(np.asarray(X, dtype="float32"))
@@ -144,9 +163,19 @@ class DLModel:
         validation = None
         if X_val is not None:
             validation = (self._features(X_val), np.asarray(y_val))
+        y_train = np.asarray(y_train)
+        class_weight = None
+        if self.balanced:
+            counts = np.bincount(y_train, minlength=2)
+            class_weight = {c: len(y_train) / (2 * counts[c]) for c in (0, 1)}
+        callbacks = []
+        if self.early_stopping and validation is not None:
+            callbacks.append(_keras().callbacks.EarlyStopping(
+                monitor="val_loss", patience=3, restore_best_weights=True))
         self.history = self.model.fit(
-            X_tr, np.asarray(y_train), epochs=self.epochs,
+            X_tr, y_train, epochs=self.epochs,
             batch_size=self.batch_size, validation_data=validation,
+            class_weight=class_weight, callbacks=callbacks,
             verbose=self.verbose).history
         return self
 
@@ -155,10 +184,46 @@ class DLModel:
                                   verbose=0).ravel()
 
     def predict(self, X):
-        return (self.predict_scores(X) > 0.5).astype(int)
+        threshold = 0.5 if self.threshold is None else self.threshold
+        return (self.predict_scores(X) >= threshold).astype(int)
 
 
 def build_model(name, **dl_kwargs):
     if name in ("CNN", "NN", "MLP"):
         return DLModel(name, **dl_kwargs)
     return build_ml_model(name)
+
+
+# ----------------------------------------------------------- improved models
+
+def build_improved_model(name, y_train, **dl_kwargs):
+    """Models for the improved pipeline (run_improved.py).
+
+    They are trained on the real, imbalanced training data and handle the
+    imbalance with class weights; the decision threshold is tuned afterwards
+    on the validation set. Tree models are regularised so they cannot
+    memorise individual records.
+    """
+    y_train = np.asarray(y_train)
+    pos_weight = float((y_train == 0).sum() / max((y_train == 1).sum(), 1))
+    if name == "DT":
+        return SklearnModel(DecisionTreeClassifier(
+            criterion="entropy", max_depth=8, min_samples_leaf=50,
+            class_weight="balanced", random_state=RANDOM_STATE))
+    if name == "SVM":
+        return SklearnModel(make_pipeline(
+            MinMaxScaler(), LinearSVC(dual=False, class_weight="balanced",
+                                      random_state=RANDOM_STATE)))
+    if name == "LogReg":
+        return SklearnModel(make_pipeline(
+            StandardScaler(), LogisticRegression(
+                max_iter=2000, class_weight="balanced")))
+    if name == "XGBoost":
+        return SklearnModel(XGBClassifier(
+            n_estimators=2000, learning_rate=0.03, max_depth=5,
+            min_child_weight=5, subsample=0.8, colsample_bytree=0.8,
+            scale_pos_weight=pos_weight, eval_metric="auc",
+            early_stopping_rounds=100, random_state=RANDOM_STATE, n_jobs=-1))
+    if name in ("CNN", "NN", "MLP"):
+        return DLModel(name, balanced=True, early_stopping=True, **dl_kwargs)
+    raise ValueError(f"Unknown model: {name}")
