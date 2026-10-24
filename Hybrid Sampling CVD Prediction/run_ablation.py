@@ -54,6 +54,7 @@ def main():
     splits = build_splits(load_dataset(args.data), "none", protocol="strict")
 
     rows = []
+    predictions = pd.DataFrame({"y_true": splits["test"][config.TARGET]})
     for model_name, label, features, sampling, improved in CONFIGURATIONS:
         cols = (list(splits["train"].columns) if features == ALL_FEATURES
                 else features + [config.TARGET])
@@ -67,6 +68,7 @@ def main():
         model.fit(X_train, y_train, X_val, y_val)
         scores = model.predict_scores(X_test)
         at_default = compute_metrics(y_test, model.predict(X_test), scores)
+        predictions[f"{model_name} | {label}"] = scores
         tune_threshold(model, X_val, y_val)
         at_tuned = compute_metrics(y_test, model.predict(X_test), scores)
         rows.append({"Model": model_name, "Configuration": label,
@@ -80,6 +82,8 @@ def main():
 
     table = pd.DataFrame(rows)
     table.to_csv(os.path.join(args.out, "ablation.csv"), index=False)
+    predictions.to_csv(os.path.join(args.out, "ablation_predictions.csv"),
+                       index=False)
     print("\n" + format_table(table))
     print(f"\nResults written to {args.out}")
 

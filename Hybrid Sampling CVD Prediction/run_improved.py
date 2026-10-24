@@ -12,9 +12,11 @@ else, and only the training data is used for fitting.
 
 Outputs (under --out): comparison.csv, roc_improved.png, a confusion
 matrix per improved model, learning curves of the improved DL models
-(PNG, and the per-epoch history as CSV) and,
+(PNG, and the per-epoch history as CSV), the test-set predictions of every
+model (test_predictions.csv) and,
 with --cv, cv_improved.csv (5-fold cross-validation of the improved models
-on the real training pool, threshold tuned inside every fold).
+on the real training pool, threshold tuned inside every fold) with the
+out-of-fold predictions of every record (cv_predictions.csv).
 
 Example:
     python run_improved.py
@@ -71,6 +73,7 @@ def main():
     paper_cols = config.SELECTED_FEATURES + [config.TARGET]
     paper_train = None
     rows, curves = [], []
+    predictions = pd.DataFrame({"y_true": splits["test"][config.TARGET]})
     for name in args.models:
         if not args.no_baseline and name != "LogReg":
             if paper_train is None:
@@ -80,8 +83,11 @@ def main():
             model = build_model(name, verbose=args.verbose)
             model.fit(*split_xy(paper_train),
                       *split_xy(splits["val"][paper_cols]))
-            metrics, *_ = evaluate(model, splits["test"][paper_cols])
+            metrics, _, y_score, _ = evaluate(model, splits["test"][paper_cols])
             rows.append({"Setup": "paper", "Model": name, "Threshold": 0.5, **metrics})
+            predictions[f"baseline_{name}_score"] = y_score
+            predictions[f"baseline_{name}_pred"] = model.predict(
+                split_xy(splits["test"][paper_cols])[0])
             _report(rows[-1], t0)
 
         t0 = time.time()
@@ -95,6 +101,9 @@ def main():
         rows.append({"Setup": "improved", "Model": name,
                      "Threshold": threshold, **metrics})
         curves.append((name, y_true, y_score, metrics["AUC (%)"]))
+        predictions[f"improved_{name}_score"] = y_score
+        predictions[f"improved_{name}_pred"] = model.predict(
+            split_xy(splits["test"])[0])
         plots.plot_confusion_matrix(
             cm, os.path.join(args.out, f"confusion_matrix_{name}.png"),
             title=f"Improved {name} Confusion Matrix (Test)")
@@ -108,6 +117,7 @@ def main():
 
     table = pd.DataFrame(rows)
     table.to_csv(os.path.join(args.out, "comparison.csv"), index=False)
+    predictions.to_csv(os.path.join(args.out, "test_predictions.csv"), index=False)
     plots.plot_roc(curves, os.path.join(args.out, "roc_improved.png"),
                    title="ROC of Improved Models (Real Test Set)")
     print("\n" + format_table(table))
@@ -116,15 +126,20 @@ def main():
         # Cross-validate on all real non-test records (training + validation).
         pool = pd.concat([splits["train"], splits["val"]], ignore_index=True)
         cv_tables = []
+        oof = pd.DataFrame({"y_true": pool[config.TARGET]})
         for name in args.models:
             print(f"-- 5-fold CV: improved {name}")
-            cv_table = cross_validate(
+            cv_table, cv_preds = cross_validate(
                 lambda y, n=name: build_improved_model(
                     n, y, epochs=args.epochs, batch_size=args.batch_size,
                     verbose=args.verbose),
-                pool, tune=True)
+                pool, tune=True, return_predictions=True)
             cv_table.insert(0, "Model", name)
             cv_tables.append(cv_table)
+            oof["fold"] = cv_preds["fold"]
+            oof[f"{name}_score"] = cv_preds["score"]
+            oof[f"{name}_pred"] = cv_preds["pred"]
+        oof.to_csv(os.path.join(args.out, "cv_predictions.csv"), index=False)
         cv_table = pd.concat(cv_tables, ignore_index=True)
         cv_table.to_csv(os.path.join(args.out, "cv_improved.csv"), index=False)
         print("\n" + format_table(cv_table))

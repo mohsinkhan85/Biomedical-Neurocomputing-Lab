@@ -528,8 +528,10 @@ training set only; the validation and test sets contain only real records
 with their natural characteristics, so that no synthetic, duplicated or
 cleaned record can reach the test data. The test set is balanced, so its
 accuracy equals the balanced accuracy. For cross-validation, the 223,781
-non-test records are split into five stratified folds; the held-out fold
-keeps the real prevalence of about 10.3\%, and any sampling, early stopping
+non-test records are split into five stratified folds. Each held-out fold
+keeps the prevalence of the non-test records, 9.3\% (slightly below the
+10.3\% of the full dataset because 3,000 CVD records were set aside for the
+balanced test set), and any sampling, early stopping
 and threshold tuning use only the training folds.
 
 \subsection{Improved Pipeline}

@@ -89,8 +89,9 @@ address it as well: with them, the default threshold is already close to the
 tuned one (76.18\% vs.\ 76.00\% accuracy for XGBoost), so in the improved
 pipeline threshold tuning mainly guards against a miscalibrated model. Third, using all
 21 features instead of the nine correlation-selected ones increases the AUC
-from 0.823 to 0.835: features such as sex, income, BMI and education carry
-predictive information that a univariate correlation ranking misses.
+from 0.823 to 0.835: features such as sex and income carry predictive
+information that a univariate correlation ranking misses
+(Section~\ref{sec:riskfactors}).
 Fourth, regularisation (shallow, early-stopped boosting and a depth-limited
 tree) prevents the models from memorising individual records; together
 with the other changes, it turns the DT from a near-random classifier into a
@@ -167,19 +168,19 @@ To check that these results do not depend on one particular split, the
 improved models were evaluated with stratified five-fold cross-validation
 on the 223,781 real records that are not in the test set. In every fold,
 20\% of the training portion was set aside for early stopping and threshold
-tuning, and the held-out fold kept the real prevalence of about 10.3\%.
+tuning, and the held-out fold kept the natural prevalence of 9.3\%.
 Table~\ref{tab:cv} reports the mean and standard deviation over the folds.
 The AUC (0.824--0.839) and recall (78.9--82.5\%) agree with the test-set
 results and vary little between folds (standard deviation of the AUC at
 most 0.64 percentage points), confirming that the estimates are stable.
 Accuracy (70.8--72.2\%) is lower than on the balanced test set because the
 tuned threshold trades specificity for sensitivity and negatives make up
-almost 90\% of each fold.
+about 91\% of each fold.
 
 \begin{table}[t]
 \centering
 \caption{Five-fold cross-validation of the improved models on real records
-at the natural prevalence of CVD (about 10.3\%); mean $\pm$ standard
+at the natural prevalence of CVD (9.3\%); mean $\pm$ standard
 deviation over the folds, in \%.}
 \label{tab:cv}
 \small

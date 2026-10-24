@@ -43,19 +43,22 @@ def evaluate(model, df):
 
 
 def cross_validate(model_factory, pool, n_folds=N_FOLDS, resample_method=None,
-                   tune=False, random_state=RANDOM_STATE):
+                   tune=False, random_state=RANDOM_STATE,
+                   return_predictions=False):
     """Stratified k-fold CV; a fresh model is trained on every fold.
 
     model_factory(y_train) returns an unfitted model. If resample_method is
     given, only the training portion of each fold is resampled (used by the
     strict protocol, where the pool is real data). If tune is True, 20% of
     each training portion is set aside as a validation set for early
-    stopping and for tuning the decision threshold.
+    stopping and for tuning the decision threshold. If return_predictions is
+    True, the out-of-fold scores and labels of every record are returned as
+    a second value (indexed like pool).
     """
     X, y = split_xy(pool)
     folds = StratifiedKFold(n_splits=n_folds, shuffle=True,
                             random_state=random_state)
-    rows = []
+    rows, predictions = [], []
     for fold, (tr_idx, te_idx) in enumerate(folds.split(X, y), start=1):
         X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
         X_val = y_val = None
@@ -69,8 +72,11 @@ def cross_validate(model_factory, pool, n_folds=N_FOLDS, resample_method=None,
         if tune:
             tune_threshold(model, X_val, y_val)
         X_te, y_te = X.iloc[te_idx], y.iloc[te_idx]
-        metrics = compute_metrics(y_te, model.predict(X_te),
-                                  model.predict_scores(X_te))
+        scores, preds = model.predict_scores(X_te), model.predict(X_te)
+        metrics = compute_metrics(y_te, preds, scores)
+        predictions.append(pd.DataFrame(
+            {"fold": fold, "y_true": y_te.to_numpy(), "score": scores,
+             "pred": preds}, index=y_te.index))
         rows.append({"Fold": f"Fold {fold}", **metrics})
         print(f"    fold {fold}: " + ", ".join(
             f"{k.split(' ')[0]}={v:.2f}" for k, v in metrics.items()))
@@ -80,6 +86,8 @@ def cross_validate(model_factory, pool, n_folds=N_FOLDS, resample_method=None,
     df = pd.concat([df, pd.DataFrame([{"Fold": "Mean", **mean},
                                       {"Fold": "Std", **std}])],
                    ignore_index=True)
+    if return_predictions:
+        return df, pd.concat(predictions).sort_index()
     return df
 
 
