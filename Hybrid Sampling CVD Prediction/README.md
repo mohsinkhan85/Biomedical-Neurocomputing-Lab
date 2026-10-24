@@ -12,13 +12,13 @@ Cleveland heart disease data (`data/cleveland/`).
 
 | Paper section | What the code does | Where |
 |---|---|---|
-| 3.1–3.3 Data, preprocessing, feature selection | Load CSV, drop duplicates, class counts, Pearson correlation ranking; Figs. 2–3 | `hscvd/data.py`, `hscvd/plots.py` |
-| 3.4 Hybrid sampling | SMOTEENN followed by Random Oversampling | `hscvd/sampling.py` |
-| 3.5 Evaluation protocols | Protocol A (resample before split) and Protocol B (split before sampling) | `hscvd/sampling.py` |
+| 3.1–3.3 Data, preprocessing, feature selection | Load CSV, drop duplicates, class counts, Pearson correlation ranking | `hscvd/data.py` |
+| 3.4 Hybrid sampling | SMOTEENN followed by Random Oversampling of the training data; Figs. 2–3 and the statistics in the text | `hscvd/sampling.py`, `sampling_analysis.py` |
+| 3.5 Evaluation protocol | Real test set (3,000 per class) and validation set held out before any sampling | `hscvd/sampling.py` |
 | 3.6 Improved pipeline | All 21 features, class weights, regularised models, threshold tuned on validation | `hscvd/models.py`, `hscvd/evaluation.py` |
 | 3.7 External evaluation | Improved pipeline on Cleveland, 5 × 5-fold cross-validation | `run_cleveland.py` |
 | 4 Models and metrics | DT, SVM, XGBoost, LR; autoencoder + CNN / NN / MLP; accuracy, precision, recall, F1, AUC | `hscvd/models.py`, `hscvd/evaluation.py` |
-| 5 Results | Tables 3–8, Figs. 4–9 | `run_experiments.py`, `run_improved.py`, `run_cleveland.py`, `make_paper_assets.py` |
+| 5 Results | Tables 3–6, Figs. 4–7 | `run_improved.py`, `run_ablation.py`, `run_cleveland.py`, `make_paper_assets.py` |
 
 ## Setup
 
@@ -29,24 +29,21 @@ pip install -r requirements.txt
 ## Reproducing the paper
 
 ```bash
-# Table 3 and Fig. 4: baseline HS pipeline under Protocol A (resample before split)
-python run_experiments.py --out results/paper
+# Figs. 2-3 and the hybrid sampling statistics of Section 3.4
+python sampling_analysis.py
 
-# Table 5 (left): baseline HS pipeline under Protocol B
+# Table 3 (left): baseline HS pipeline on the real test set
 python run_improved.py
 
-# Table 4 and the sampling statistics of Section 3.4 and 5.2
-python leakage_analysis.py
-
-# Table 6: ablation study
+# Table 4: ablation study
 python run_ablation.py
 
-# Table 5 (right), Table 7, Figs. 5-8: improved pipeline with 5-fold CV
+# Table 3 (right), Table 5, Figs. 4-7: improved pipeline with 5-fold CV
 # (DL results depend on the training order, so the improved column of the
 # paper is taken from this run, not from run_improved.py above)
 python run_improved.py --no-baseline --cv --out results/improved_cv
 
-# Table 8, Cleveland rows
+# Table 6, Cleveland rows
 python run_cleveland.py
 
 # Build the manuscript's figures and tables, then the PDF
@@ -55,36 +52,26 @@ cd paper && latexmk -pdf main.tex
 ```
 
 All runs use random seed 42, and TensorFlow runs deterministically, so
-repeated runs give identical numbers. The full set takes a few hours on a
-4-core CPU; a quick smoke test of the Protocol A pipeline runs in about two
-minutes:
+repeated runs give identical numbers.
+
+## Resampling before splitting (`run_experiments.py`)
+
+`run_experiments.py` also supports the resample-before-split setting that
+is common in published pipelines (`--protocol paper`): the *entire* dataset
+is resampled with SMOTEENN + ROS before the test set is drawn. Duplicated
+and cleaned records then reach the test set, and the HS models appear to
+reach 94.7–99.8% accuracy; the paper cites this figure once (Section 5.5) to
+explain why published results can be higher. `--protocol strict` resamples
+only the training data. A quick smoke test runs in about two minutes:
 
 ```bash
 python run_experiments.py --sample-frac 0.1 --epochs 1 --skip-cv --out results/smoke
 ```
 
-Useful options of `run_experiments.py`: `--protocol paper|strict`
-(Protocol A or B), `--sampling hs` (run only some sampling methods),
-`--epochs N`, `--batch-size N`, `--no-autoencoder`, `--skip-cv`,
-`--test-per-class N`, `--verbose 1`.
+Other options: `--sampling hs`, `--epochs N`, `--batch-size N`,
+`--no-autoencoder`, `--skip-cv`, `--test-per-class N`, `--verbose 1`.
 
-## Evaluation protocols
-
-**Protocol A (`--protocol paper`, resample before split).** The *entire*
-dataset is resampled with SMOTEENN + ROS, then 3,000 records per class are
-drawn from the resampled data as the test set and the rest is split 80/20.
-Because ROS duplicates minority records and ENN deletes borderline ones,
-every positive test record has an identical copy in the training set and
-the hard cases are removed from the test set. Models reach 94.7–99.8%
-accuracy (fully grown DT 99.8%), which does not carry over to new patients.
-
-**Protocol B (`--protocol strict`, split before sampling).** The test set
-(3,000 real records per class) and the validation set are held out *before*
-any sampling; only the training data (and, in cross-validation, only the
-training folds) are resampled. This measures performance on real patients
-the models have never seen.
-
-## Results on real, unseen patients (Protocol B)
+## Results on real, unseen patients
 
 6,000 real test records (3,000 per class); training 179,024 and validation
 44,757 real records. Accuracy / recall / F1 / AUC, in %:
@@ -100,7 +87,7 @@ the models have never seen.
 | MLP | 63.05 / 34.17 / 48.04 / 72.53 | **75.47 / 82.40 / 77.06 / 83.79** |
 
 The improved pipeline makes four changes, each quantified in the paper's
-ablation study (Table 6):
+ablation study (Table 4):
 
 | Change | Why |
 |---|---|

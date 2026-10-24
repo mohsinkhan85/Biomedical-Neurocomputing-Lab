@@ -1,156 +1,34 @@
-The results are presented in five parts. Section~\ref{sec:resA} reports
-the performance of the HS models under the resample-before-split protocol
-(Protocol A). Section~\ref{sec:leak} analyses why these results do not
-transfer to new patients. Section~\ref{sec:resB} evaluates the same models
-and the improved pipeline on real, held-out records (Protocol B), including
-an ablation study and five-fold cross-validation.
-Section~\ref{sec:compare} compares the findings with existing studies,
-including the external evaluation on clinical data, and
-Section~\ref{sec:limits} discusses the limitations. All
-experiments use a fixed random state of 42 and can be reproduced with the
-released code.
+The results are presented in six parts. Section~\ref{sec:resB} evaluates
+the baseline HS pipeline on real, held-out records, and
+Section~\ref{sec:ablation} identifies the design choices that limit its
+performance. Section~\ref{sec:improvedres} presents the improved pipeline,
+and Section~\ref{sec:cv} confirms its results with five-fold
+cross-validation. Section~\ref{sec:compare} compares the findings with
+existing studies, including the external evaluation on clinical data, and
+Section~\ref{sec:limits} discusses the limitations. All experiments use a
+fixed random state of 42 and can be reproduced with the released code.
 
-\subsection{Performance under the Resample-Before-Split Protocol}
-\label{sec:resA}
-
-Table~\ref{tab:protoA} reports the test-set performance of all models when
-the full dataset is resampled before it is split (Protocol A), as in the
-baseline HS pipeline. With hybrid sampling every model appears highly
-accurate: the DT reaches 99.78\% accuracy and 100\% recall, XGBoost
-98.23\%, the MLP 98.45\% and the CNN and NN 96.02\% and 94.70\%; the ROC
-curves (Fig.~\ref{fig:rocA}) hug the top-left corner with AUC values of
-0.96--1.00. Models trained with ROS alone, in contrast, reach only about
-75.5\% accuracy and an AUC of 0.83, while SMOTEENN alone yields
-88.6--91.2\%; Section~\ref{sec:leak} explains why the ENN cleaning step
-makes the difference.
-
-\begin{table}[t]
-\centering
-\caption{Test performance under Protocol A (resample before split; 3,000
-test records per class drawn from the resampled data).}
-\label{tab:protoA}
-\small
-\begin{tabular}{llccccc}
-\toprule
-Sampling & Model & Acc. (\%) & Prec. (\%) & Rec. (\%) & F1 (\%) & AUC (\%) \\
-\midrule
-\multirow{3}{*}{SMOTEENN} & CNN & 88.58 & 96.81 & 79.80 & 87.48 & 98.08 \\
- & NN & 89.18 & 96.41 & 81.40 & 88.27 & 98.38 \\
- & MLP & 91.15 & 97.72 & 84.27 & 90.50 & 99.12 \\
-\midrule
-\multirow{3}{*}{ROS} & CNN & 75.55 & 72.70 & 81.83 & 77.00 & 83.17 \\
- & NN & 75.47 & 72.63 & 81.73 & 76.91 & 83.20 \\
- & MLP & 75.63 & 72.39 & 82.87 & 77.28 & 83.30 \\
-\midrule
-\multirow{6}{*}{HS} & CNN & 96.02 & 93.13 & 99.37 & 96.15 & 98.73 \\
- & NN & 94.70 & 94.49 & 94.93 & 94.71 & 98.63 \\
- & MLP & 98.45 & 97.12 & 99.87 & 98.47 & 99.47 \\
- & DT & 99.78 & 99.57 & 100.00 & 99.78 & 99.78 \\
- & SVM & 89.57 & 88.79 & 90.57 & 89.67 & 95.96 \\
- & XGBoost & 98.23 & 96.80 & 99.77 & 98.26 & 99.65 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[t]
-\centering
-\begin{subfigure}{0.49\linewidth}
-  \centering
-  \includegraphics[width=\linewidth]{figures/roc_hs_dl.png}
-  \caption{HS with DL models}
-\end{subfigure}
-\begin{subfigure}{0.49\linewidth}
-  \centering
-  \includegraphics[width=\linewidth]{figures/roc_hs_ml.png}
-  \caption{HS with ML models}
-\end{subfigure}
-\caption{ROC curves under Protocol A (resample before split). The
-near-perfect curves are an artefact of data leakage
-(Section~\ref{sec:leak}).}
-\label{fig:rocA}
-\end{figure}
-
-\subsection{Data Leakage in the Resample-Before-Split Protocol}
-\label{sec:leak}
-
-Two properties of HS explain why the Protocol A results overstate how the
-models would perform on new patients.
-
-\paragraph{Duplication.} SMOTE first creates 182,347 synthetic positive
-records to balance the classes. ENN then removes most of the positive
-records together with 40,920 real negative records, leaving 22,239
-positive and 165,144 negative records. ROS finally
-duplicates each remaining positive record about 7.4 times on average to
-balance the classes. When the test set is drawn from these data, its
-positive records are copies of records that also occur in the training set.
-Table~\ref{tab:leak} quantifies this: under Protocol A, 100\% of the
-positive test records have an identical record (same features and label) in
-the training set, compared with 4.6\% under Protocol B. A fully grown
-decision tree can simply memorise these records, which explains its
-near-perfect score.
-
-\paragraph{Cleaning of the test population.} ENN removes every record whose
-label disagrees with most of its nearest neighbours. These are exactly the
-patients whose survey answers look like those of the opposite class: 19.9\%
-of all real negative records are deleted before the test set is drawn. The
-test set therefore no longer contains the borderline cases that make CVD
-prediction from survey data hard, and the classes become artificially
-separable. This is why HS raises even the smooth DL models from about
-75.5\% (ROS alone, which removes no records) to 94.7--98.5\%. In a clinical
-setting such patients cannot be removed.
-
-\begin{table}[t]
-\centering
-\caption{Overlap between test and training sets for hybrid sampling:
-percentage of test records that have an identical record (all nine features
-and the label) in the training set. Negative records overlap even without
-leakage because healthy respondents often give identical answers to the
-nine mostly binary questions.}
-\label{tab:leak}
-\small
-\begin{tabular}{lccc}
-\toprule
-Protocol & All test records & Positive (CVD) & Negative \\
-\midrule
-A: resample before split & 98.5\% & 100.0\% & 96.9\% \\
-B: split before sampling & 40.9\% & 4.6\% & 77.1\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Both effects are well-documented forms of data
-leakage~\cite{kaufman,kapoor}: information about the test data enters
-model training or shapes the test data themselves. Santos et
-al.~\cite{santos} showed that oversampling before cross-validation produces
-over-optimistic estimates, and our results quantify the size of this bias
-for CVD prediction: more than 40 percentage points of accuracy for the DT.
-For the same reason, cross-validation must also be performed on real
-records, with resampling confined to the training folds; we therefore
-report only leakage-free cross-validation (Section~\ref{sec:cv}).
-
-\subsection{Performance on Real, Unseen Records}
+\subsection{Baseline HS Pipeline on Real, Unseen Records}
 \label{sec:resB}
 
-\subsubsection{The baseline HS pipeline under Protocol B}
-
-Table~\ref{tab:protoB} (left) shows the same HS models trained on the
-resampled training set and evaluated on 6,000 real records that were held
-out before sampling. Performance drops sharply: accuracy falls to
-57.4--70.8\% and the AUC to 0.57--0.81. The fully grown DT, the best model
-under Protocol A, is close to chance level (AUC 0.574) because the records
-it memorised do not recur among new patients. All HS models are also very
+Table~\ref{tab:protoB} (left) shows the HS models trained on the resampled
+training set and evaluated on the 6,000 real records that were held out
+before sampling. They reach only 57.4--70.8\% accuracy and an AUC of
+0.57--0.81. The fully grown DT is close to chance level (AUC 0.574): it
+memorises the training records, many of them duplicates, and these do not
+recur among new patients. All HS models are also very
 conservative on real data: their recall ranges from 18.5\% (DT) to 60.2\%
 (SVM), so most CVD cases are missed. This follows from the changes that HS
 makes to the training data (Section~\ref{sec:hs}): ENN keeps only the most
-clear-cut heart disease cases (40.3\% with a past stroke, compared with
-16.6\% among real patients), so the models learn that only such profiles
+clear-cut heart disease cases (38.1\% with a past stroke, compared with
+16.4\% among the real training records), so the models learn that only such profiles
 are positive and classify most real patients with less typical answers as
 negative.
 
 \begin{table}[t]
 \centering
-\caption{Test performance under Protocol B (6,000 real records, 3,000 per
-class, held out before any sampling). Left: baseline HS pipeline (nine
+\caption{Test performance on 6,000 real records (3,000 per class) held out
+before any sampling. Left: baseline HS pipeline (nine
 features, hybrid sampling of the training data, threshold 0.5). Right:
 improved pipeline (all 21 features, class weights, regularised models,
 threshold tuned on the validation set). All values in \%.}
@@ -162,12 +40,13 @@ threshold tuned on the validation set). All values in \%.}
  & \multicolumn{5}{c|}{Baseline HS pipeline} & \multicolumn{5}{c}{Improved pipeline} \\
 Model & Acc. & Prec. & Rec. & F1 & AUC & Acc. & Prec. & Rec. & F1 & AUC \\
 \midrule
-\inputrows{tables/protocol_b_test.tex}
+\inputrows{tables/test_results.tex}
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Ablation study}
+\subsection{Ablation Study}
+\label{sec:ablation}
 
 To identify which design choices limit performance on real data, we varied
 them one at a time for XGBoost and the DT (Table~\ref{tab:ablation}). The
@@ -177,7 +56,7 @@ the threshold tuned on the validation set.
 
 \begin{table}[t]
 \centering
-\caption{Ablation study under Protocol B (real test set). ``Tuned'' denotes
+\caption{Ablation study on the real test set. ``Tuned'' denotes
 the threshold that maximises Youden's $J$ on the validation set.}
 \label{tab:ablation}
 \small
@@ -217,7 +96,8 @@ tree) prevents the models from memorising individual records; together
 with the other changes, it turns the DT from a near-random classifier into a
 competitive model (AUC 0.825).
 
-\subsubsection{The improved pipeline}
+\subsection{Improved Pipeline}
+\label{sec:improvedres}
 
 Table~\ref{tab:protoB} (right) shows that the improved pipeline raises
 every model on real, unseen records, and Fig.~\ref{fig:improved}
@@ -241,15 +121,14 @@ therefore not directly comparable to the unweighted validation loss.
 \centering
 \includegraphics[width=0.9\linewidth]{figures/improved_results.png}
 \caption{Accuracy, recall and AUC of the improved models on the real,
-unseen test set (Protocol B).}
+unseen test set.}
 \label{fig:improved}
 \end{figure}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.6\linewidth]{figures/roc_improved.png}
-\caption{ROC curves of the improved models on the real, unseen test set
-(Protocol B).}
+\caption{ROC curves of the improved models on the real, unseen test set.}
 \label{fig:rocB}
 \end{figure}
 
@@ -268,7 +147,7 @@ unseen test set (Protocol B).}
   \caption{MLP}
 \end{subfigure}
 \caption{Confusion matrices of improved models on the real test set
-(Protocol B, 3,000 records per class).}
+(3,000 records per class).}
 \label{fig:cmB}
 \end{figure}
 
@@ -281,7 +160,7 @@ improves, and the weights of the best epoch (dashed line) are restored.}
 \label{fig:lcB}
 \end{figure}
 
-\subsubsection{Five-fold cross-validation}
+\subsection{Five-Fold Cross-Validation}
 \label{sec:cv}
 
 To check that these results do not depend on one particular split, the
@@ -368,9 +247,10 @@ achieves an AUC of about 0.90. Second, accuracies estimated on a few dozen
 test patients vary by several percentage points between random splits, as
 our repeated cross-validation shows, and
 several studies do not state whether resampling or feature selection was
-performed before the data were split; as Section~\ref{sec:leak} shows, this
-choice alone can change the accuracy of the same model on the same data from
-57\% to 99.8\%.
+performed before the data were split. Resampling before splitting is known
+to inflate performance estimates~\cite{santos,kapoor}: when we resampled
+our data before splitting them, the same HS models reached 94.7--99.8\%
+accuracy instead of 57.4--70.8\%.
 
 \begin{table}[t]
 \centering
@@ -378,7 +258,7 @@ choice alone can change the accuracy of the same model on the same data from
 in \%. Accuracy, precision and F1 depend on the prevalence of CVD in the
 test data, so the AUC is the metric that is comparable across studies.
 Proposed results are leakage-free: BRFSS on the real, balanced
-held-out test set (Protocol B); Cleveland as mean $\pm$ standard deviation
+held-out test set; Cleveland as mean $\pm$ standard deviation
 of 5$\times$5-fold cross-validation.}
 \label{tab:literature}
 \footnotesize
@@ -424,7 +304,7 @@ less information than clinical measurements, which limits the attainable
 discrimination. The models were developed and tested on a single survey
 year without external validation, and the calibration of the predicted
 probabilities was not assessed. The balanced test set makes accuracy
-comparable across protocols, but precision and F1 depend on prevalence, and
+comparable across models, but precision and F1 depend on prevalence, and
 the cross-validation results indicate the values to expect in a general
 population. The Cleveland evaluation used the hyper-parameters chosen for
 BRFSS without re-tuning, which favours a fair comparison over the best

@@ -156,8 +156,7 @@ This study examines this problem for CVD prediction from population survey
 data. We combine three DL models (CNN, NN, MLP) and three ML models (DT, SVM,
 XGBoost) with correlation-based feature selection and HS, and evaluate them
 with a leakage-free protocol in which the test data are held out before any
-sampling; for reference, we also report the commonly used
-resample-before-split protocol. We then identify which design choices limit performance on real
+sampling. We then identify which design choices limit performance on real
 patients, propose an improved pipeline, and compare it with published
 studies on the same and on clinical data. 
 A comprehensive list of abbreviations and their corresponding
@@ -165,15 +164,15 @@ descriptions can be found in Table~\ref{tab:abbrev}. The key contributions of
 this study are as follows:
 
 \begin{itemize}
-  \item We implement a typical HS pipeline for CVD prediction (hereafter the
-    baseline HS pipeline), with data preprocessing, feature selection based
+  \item We implement a typical HS pipeline for CVD prediction, hereafter
+    called the baseline HS pipeline, with data preprocessing, feature selection based
     on correlation, hybrid sampling (SMOTEENN followed by ROS) and six DL
     and ML models, and evaluate it on 6,000 real records held out before any
     sampling (57.4--70.8\% accuracy, AUC 0.57--0.81).
   \item We analyse why hybrid sampling degrades performance on real
     patients: it removes borderline records and duplicates the remaining
     minority records, so that, for example, the share of CVD cases with a
-    past stroke rises from 16.6\% to 40.3\% and the models miss most real
+    past stroke rises from 16.4\% to 38.1\% and the models miss most real
     CVD cases.
   \item We propose an improved, leakage-free pipeline (all features, class
     weighting, regularised models, validation-tuned decision threshold)
@@ -193,8 +192,8 @@ The primary goal of this research is to provide a reliable assessment of
 how well ML models can identify individuals with CVD from survey data, and to give practical
 guidance on building and evaluating such models. The structure of this
 paper is as follows: Section~\ref{sec:lit} offers an overview of the related
-literature. Section~\ref{sec:method} explains the methodology, including both
-evaluation protocols, the improved pipeline and the external evaluation on
+literature. Section~\ref{sec:method} explains the methodology, including the
+evaluation protocol, the improved pipeline and the external evaluation on
 clinical data.
 Section~\ref{sec:arch} describes the models and evaluation metrics.
 Section~\ref{sec:results} presents and discusses the results, and
@@ -327,22 +326,22 @@ obtained on different datasets, often small ones, and many studies do not
 state whether resampling or feature selection was applied before or after
 the data were split. It therefore remains unclear how much of the reported
 performance reflects genuine predictive power and how much is an artefact of
-the evaluation protocol. This study addresses this gap by evaluating the
-same HS pipeline under both protocols on a large survey dataset, quantifying
-the resulting bias, and deriving a leakage-free pipeline that is compared
-with published results on equal terms.
+the evaluation protocol. This study addresses this gap by evaluating a
+typical HS pipeline on real, held-out patients from a large survey dataset,
+analysing why it underperforms, and deriving an improved pipeline that is
+compared with published results on equal terms.
 
 \section{PROPOSED METHODOLOGY}
 \label{sec:method}
 
 This section describes the data, the preprocessing and feature selection,
-hybrid sampling, the two evaluation protocols, the improved pipeline and the
+hybrid sampling, the evaluation protocol, the improved pipeline and the
 external evaluation on clinical data. The analysis is implemented in Python
 using pandas, scikit-learn, imbalanced-learn, XGBoost and TensorFlow/Keras.
 The overall pipeline is shown in Fig.~\ref{fig:method}; its key design
 choice is the point at which sampling is applied relative to the train/test
-split, which defines the two evaluation protocols compared throughout the
-paper.
+split: sampling is applied only to the training data, after the test data
+have been set aside.
 
 \begin{figure}[t]
 \centering
@@ -352,26 +351,13 @@ paper.
   box/.style={draw, rounded corners=2pt, fill=boxblue, text=white,
               font=\small\bfseries, align=center, minimum height=9mm,
               minimum width=21mm},
-  data/.style={box, fill=boxred},
   good/.style={box, fill=boxgreen},
-  arr/.style={-{Stealth[length=2mm]}, thick},
-  lbl/.style={font=\small\bfseries, anchor=west}]
-  % Protocol A
-  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (baseline HS pipeline)};
-  \node[box, below=4mm of la.south west, anchor=north west] (a1) {Dataset};
-  \node[box, right=of a1] (a2) {Feature\\selection};
-  \node[box, right=of a2] (a3) {Hybrid sampling\\(SMOTEENN+ROS)\\of \emph{all} data};
-  \node[data, right=of a3] (a4) {Test set\\3,000/class};
-  \node[data, right=of a4] (a5) {Train 80\%\\Valid. 20\%};
-  \draw[arr] (a1) -- (a2); \draw[arr] (a2) -- (a3); \draw[arr] (a3) -- (a4);
-  \draw[arr] (a4) -- (a5);
-  % Protocol B
-  \node[lbl, anchor=west] (lb) at ([yshift=-6mm]la.west |- a3.south) {(b) Protocol B: split before any sampling (leakage-free)};
-  \node[box, below=4mm of lb.south west, anchor=north west] (b1) {Dataset};
+  arr/.style={-{Stealth[length=2mm]}, thick}]
+  \node[box] (b1) {Dataset\\(229,781)};
   \node[good, right=of b1] (b2) {Test set\\3,000/class\\(real records)};
   \node[good, right=of b2] (b3) {Train 80\%\\Valid. 20\%\\(real records)};
   \node[box, right=of b3] (b3f) {Features\\(9 selected\\or all 21)};
-  \node[box, right=of b3f] (b4) {Sampling or\\class weights on\\\emph{training} only};
+  \node[box, right=of b3f] (b4) {HS or\\class weights on\\\emph{training} only};
   \node[box, right=of b4] (b5) {Train models,\\tune threshold\\on validation};
   \draw[arr] (b1) -- (b2); \draw[arr] (b2) -- (b3); \draw[arr] (b3) -- (b3f);
   \draw[arr] (b3f) -- (b4); \draw[arr] (b4) -- (b5);
@@ -379,13 +365,11 @@ paper.
   \draw[arr] (b5) -- (b6);
   \draw[arr, dashed] (b2.south) |- (b6.west);
 \end{tikzpicture}}
-\caption{Overview of the methodology and the two evaluation protocols. (a)
-In the resample-before-split protocol of the baseline HS pipeline, synthetic,
-duplicated and cleaned records are created before the test set is drawn.
-(b) In the leakage-free protocol, used for the baseline HS models (nine
-selected features, hybrid sampling) and for the improved pipeline (all 21
-features, class weights), the test and validation sets contain only real
-records that are never resampled or seen during training.}
+\caption{Overview of the methodology. The test set and the validation set
+are drawn from the real records before any sampling and are never
+resampled or used for training. The baseline HS pipeline uses the nine
+selected features and hybrid sampling of the training data; the improved
+pipeline uses all 21 features and class weights.}
 \label{fig:method}
 \end{figure}
 
@@ -463,13 +447,13 @@ Section~\ref{sec:hs}.
 \centering
 \begin{subfigure}{\linewidth}
   \centering
-  \includegraphics[width=0.9\linewidth]{figures/fig2_distribution_before_sampling.png}
+  \includegraphics[width=0.9\linewidth]{figures/distribution_before_sampling.png}
   \caption{Before sampling}
 \end{subfigure}
 \begin{subfigure}{\linewidth}
   \centering
-  \includegraphics[width=0.9\linewidth]{figures/fig4_distribution_after_sampling.png}
-  \caption{After hybrid sampling of the whole dataset (Protocol A)}
+  \includegraphics[width=0.9\linewidth]{figures/distribution_after_sampling.png}
+  \caption{Training set after hybrid sampling}
 \end{subfigure}
 \caption{Distribution of the target variable, and of stroke and smoker cases
 among individuals with heart disease, before and after hybrid sampling.}
@@ -480,13 +464,13 @@ among individuals with heart disease, before and after hybrid sampling.}
 \centering
 \begin{subfigure}{0.49\linewidth}
   \centering
-  \includegraphics[width=\linewidth]{figures/fig3_age_before_sampling.png}
+  \includegraphics[width=\linewidth]{figures/age_before_sampling.png}
   \caption{Before sampling}
 \end{subfigure}
 \begin{subfigure}{0.49\linewidth}
   \centering
-  \includegraphics[width=\linewidth]{figures/fig5_age_after_sampling.png}
-  \caption{After hybrid sampling (Protocol A)}
+  \includegraphics[width=\linewidth]{figures/age_after_sampling.png}
+  \caption{Training set after hybrid sampling}
 \end{subfigure}
 \caption{Age distribution of individuals with and without heart disease
 before and after hybrid sampling.}
@@ -519,45 +503,40 @@ neighbours, from both classes. Finally, ROS duplicates minority records
 until both classes have equal size. The HS methodology is implemented with
 the imbalanced-learn library (random state 42).
 
-Hybrid sampling balances the classes (Fig.~\ref{fig:dist}(b)), but it also
-changes who the records describe. Because ENN deletes records that resemble
-the opposite class, the remaining heart disease cases are the most
-clear-cut ones: among them, the share of individuals who have had a stroke
-rises from 16.6\% to 40.3\%. Conversely, the remaining non-CVD records are
-younger on average (mean age category 7.85 before and 7.34 after sampling;
-Fig.~\ref{fig:age}(b)), consistent with the removal of older healthy
-respondents who resemble patients. Section~\ref{sec:results}
+Applied to the 179,024 real training records (Section~\ref{sec:protocols}),
+SMOTE creates 145,876 synthetic positive records. ENN then removes 88.5\%
+of the positive records together with 18.7\% of the real negative records,
+and ROS duplicates each remaining positive record about seven times, giving
+264,238 balanced training records. Hybrid sampling thus balances the classes
+(Fig.~\ref{fig:dist}(b)), but it also changes who the records describe.
+Because ENN deletes records that resemble the opposite class, the remaining
+heart disease cases are the most clear-cut ones: among them, the share of
+individuals who have had a stroke rises from 16.4\% to 38.1\%. Conversely,
+the remaining non-CVD records are younger on average (mean age category
+7.86 before and 7.38 after sampling; Fig.~\ref{fig:age}(b)), consistent
+with the removal of older healthy respondents who resemble patients. Section~\ref{sec:results}
 shows how these changes affect performance on real patients.
 
-\subsection{Evaluation Protocols}
+\subsection{Evaluation Protocol}
 \label{sec:protocols}
 
-\paragraph{Protocol A (resample before split).} This protocol, common in
-published pipelines, is used by the baseline HS pipeline. HS is applied to the whole dataset, which yields 330,288
-records (165,144 per class). From this resampled dataset 3,000 records per
-class are drawn at random as the test set; the remaining records are split
-80/20 into training (259,430) and validation (64,858) sets. Five-fold
-cross-validation is likewise run on the resampled data.
-
-\paragraph{Protocol B (split before sampling, leakage-free).} Before any
-sampling, 3,000 \emph{real} records per class are drawn from the deduplicated
-dataset as the test set. The remaining records are split, stratified by
-class, into training (179,024 records, 80\%) and validation (44,757 records,
-20\%) sets. Sampling, when used, is applied to the training set only; the
-validation and test sets contain only real records with their natural
-characteristics. The test set is balanced, so its accuracy equals the
-balanced accuracy, which allows a direct comparison with Protocol A. For
-cross-validation the 223,781 non-test records are split into five
-stratified folds; the held-out fold keeps the real prevalence of about
-10.3\%, and any sampling, early stopping and threshold tuning use only the
-training folds.
+Before any sampling, 3,000 \emph{real} records per class are drawn from the
+deduplicated dataset as the test set. The remaining records are split,
+stratified by class, into training (179,024 records, 80\%) and validation
+(44,757 records, 20\%) sets. Sampling, when used, is applied to the
+training set only; the validation and test sets contain only real records
+with their natural characteristics, so that no synthetic, duplicated or
+cleaned record can reach the test data. The test set is balanced, so its
+accuracy equals the balanced accuracy. For cross-validation, the 223,781
+non-test records are split into five stratified folds; the held-out fold
+keeps the real prevalence of about 10.3\%, and any sampling, early stopping
+and threshold tuning use only the training folds.
 
 \subsection{Improved Pipeline}
 \label{sec:improved}
 
-Motivated by the leakage analysis and the ablation study in
-Section~\ref{sec:results}, we propose an improved pipeline that is
-evaluated under Protocol B. It makes four changes to the baseline HS
+Motivated by the ablation study in Section~\ref{sec:results}, we propose
+an improved pipeline that is evaluated with the same protocol. It makes four changes to the baseline HS
 pipeline:
 \begin{enumerate}
   \item \textbf{All 21 features} are used instead of the nine
@@ -682,7 +661,7 @@ thresholds~\cite{ullah2022}. The AUC ranges from 0.5 (random guessing) to 1.0
 
 Unlike accuracy, precision and F1, the AUC does not depend on the decision
 threshold or on the class balance of the test set, which makes it the most
-robust metric for comparing models across protocols.
+robust metric for comparing models across studies.
 
 \section{RESULTS AND DISCUSSION}
 \label{sec:results}

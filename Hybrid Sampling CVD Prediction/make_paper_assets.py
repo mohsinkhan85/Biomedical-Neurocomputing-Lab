@@ -2,7 +2,7 @@
 (paper/figures/ and paper/tables/).
 
 Needs the outputs of:
-    python run_experiments.py                          -> results/paper/
+    python sampling_analysis.py                        -> results/sampling/
     python run_improved.py                             -> results/improved/
     python run_improved.py --no-baseline --cv --out results/improved_cv
 """
@@ -174,7 +174,7 @@ def write_literature_rows(path, frame, dataset, models=("XGBoost", "LogReg", "ML
 def main():
     os.makedirs(FIGURES, exist_ok=True)
     os.makedirs(TABLES, exist_ok=True)
-    write_test_table(os.path.join(TABLES, "protocol_b_test.tex"))
+    write_test_table(os.path.join(TABLES, "test_results.tex"))
     if os.path.exists(os.path.join(RESULTS, "improved_cv", "cv_improved.csv")):
         write_cv_table(os.path.join(TABLES, "cv_improved.tex"))
     _, improved = comparison_table()
@@ -191,12 +191,10 @@ def main():
     plot_improved(os.path.join(FIGURES, "improved_results.png"))
     plot_learning_curves(os.path.join(FIGURES, "improved_learning_curves.png"))
     copies = {
-        "eda/fig2_distribution_before_sampling.png": "paper",
-        "eda/fig3_age_before_sampling.png": "paper",
-        "eda/fig4_distribution_after_sampling.png": "paper",
-        "eda/fig5_age_after_sampling.png": "paper",
-        "figures/roc_hs_dl.png": "paper",
-        "figures/roc_hs_ml.png": "paper",
+        "distribution_before_sampling.png": "sampling",
+        "age_before_sampling.png": "sampling",
+        "distribution_after_sampling.png": "sampling",
+        "age_after_sampling.png": "sampling",
         "roc_improved.png": "improved_cv",
         "confusion_matrix_XGBoost.png": "improved_cv",
         "confusion_matrix_LogReg.png": "improved_cv",
