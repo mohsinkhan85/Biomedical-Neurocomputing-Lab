@@ -169,10 +169,12 @@ descriptions can be found in Table~\ref{tab:abbrev}. The key contributions of
 this study are as follows:
 
 \begin{itemize}
-  \item We implement a typical HS pipeline for CVD prediction, with data
+  \item We implement a typical HS pipeline for CVD prediction (hereafter the
+    baseline HS pipeline), with data
     preprocessing, feature selection based on correlation, hybrid sampling
-    (SMOTEENN followed by ROS) and six DL and ML models, and reproduce its
-    reported accuracy.
+    (SMOTEENN followed by ROS) and six DL and ML models, and show that it
+    reaches 94.7--99.8\% accuracy when the data are resampled before they
+    are split.
   \item We show, quantitatively, that resampling the dataset before
     splitting it leaks information into the test set: all positive test
     records have identical copies in the training set and the ENN step
@@ -363,7 +365,7 @@ paper.
   arr/.style={-{Stealth[length=2mm]}, thick},
   lbl/.style={font=\small\bfseries, anchor=west}]
   % Protocol A
-  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (original pipeline)};
+  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (baseline HS pipeline)};
   \node[box, below=4mm of la.south west, anchor=north west] (a1) {Dataset};
   \node[box, right=of a1] (a2) {Feature\\selection};
   \node[box, right=of a2] (a3) {Hybrid sampling\\(SMOTEENN+ROS)\\of \emph{all} data};
@@ -386,9 +388,9 @@ paper.
   \draw[arr, dashed] (b2.south) |- (b6.west);
 \end{tikzpicture}}
 \caption{Overview of the methodology and the two evaluation protocols. (a)
-In the resample-before-split protocol of the original pipeline, synthetic,
+In the resample-before-split protocol of the baseline HS pipeline, synthetic,
 duplicated and cleaned records are created before the test set is drawn.
-(b) In the leakage-free protocol, used for the original HS models (nine
+(b) In the leakage-free protocol, used for the baseline HS models (nine
 selected features, hybrid sampling) and for the improved pipeline (all 21
 features, class weights), the test and validation sets contain only real
 records that are never resampled or seen during training.}
@@ -507,8 +509,8 @@ correlation matrix is computed and the features are ranked by their
 correlation with ``HeartDiseaseorAttack''. The strongest associations are
 found for GenHlth ($r = 0.246$), Age (0.224), DiffWalk (0.203), HighBP
 (0.201), Stroke (0.199), HighChol (0.176), Diabetes (0.171), PhysHlth
-(0.171) and Smoker (0.105). Following the original pipeline, these nine
-features are used by the HS models. Because Pearson correlation only
+(0.171) and Smoker (0.105). These nine features are used by the baseline
+HS models. Because Pearson correlation only
 captures linear, univariate association, the improved pipeline
 (Section~\ref{sec:improved}) instead uses all 21 features and lets the
 models weigh them; the effect of this choice is quantified in the ablation
@@ -538,8 +540,8 @@ shows how these changes affect performance on real patients.
 \subsection{Evaluation Protocols}
 \label{sec:protocols}
 
-\paragraph{Protocol A (resample before split).} This is the protocol of the
-original pipeline. HS is applied to the whole dataset, which yields 330,288
+\paragraph{Protocol A (resample before split).} This protocol, common in
+published pipelines, is used by the baseline HS pipeline. HS is applied to the whole dataset, which yields 330,288
 records (165,144 per class). From this resampled dataset 3,000 records per
 class are drawn at random as the test set; the remaining records are split
 80/20 into training (259,430) and validation (64,858) sets. Five-fold
@@ -563,7 +565,7 @@ training folds.
 
 Motivated by the leakage analysis and the ablation study in
 Section~\ref{sec:results}, we propose an improved pipeline that is
-evaluated under Protocol B. It makes four changes to the original HS
+evaluated under Protocol B. It makes four changes to the baseline HS
 pipeline:
 \begin{enumerate}
   \item \textbf{All 21 features} are used instead of the nine

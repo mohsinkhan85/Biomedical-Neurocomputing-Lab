@@ -1,22 +1,25 @@
-# Hybrid Sampling + ML/DL for Cardiovascular Disease Prediction
+# Hybrid Sampling and Machine Learning for CVD Prediction
 
-Code for the paper **"Integrating Hybrid Sampling with Machine Learning for
-Enhanced Cardiovascular Disease Prediction"** (Daniyal, Jadoon, Miakhil, Iqbal,
-Qureshi, Ullah, Rehman).
+Code for the paper **"Hybrid Sampling and Machine Learning for
+Cardiovascular Disease Prediction: Data Leakage in Resample-Before-Split
+Evaluation and a Leakage-Free Pipeline"** (Daniyal, Jadoon, Miakhil, Iqbal,
+Qureshi, Ullah, Rehman). The manuscript is in [`paper/`](paper/) and every
+table and figure in it can be regenerated from this code.
 
-It implements the pipeline of Fig. 1 on the BRFSS 2015 heart disease
-health indicators dataset (`data/heart_disease_health_indicators_BRFSS2015.csv`,
-253,680 records, 22 columns):
+The experiments use the BRFSS 2015 Heart Disease Health Indicators dataset
+(`data/heart_disease_health_indicators_BRFSS2015.csv`, 253,680 records,
+229,781 after removing duplicates) and, for the external comparison, the UCI
+Cleveland heart disease data (`data/cleveland/`).
 
 | Paper section | What the code does | Where |
 |---|---|---|
-| 3.1–3.2 Data collection & preprocessing | Load CSV, drop duplicates, check missing values, class counts, Figs. 2–3 | `hscvd/data.py`, `hscvd/plots.py` |
-| 3.3 Feature selection | Pearson correlation with `HeartDiseaseorAttack`; keeps GenHlth, Age, DiffWalk, HighBP, Stroke, PhysHlth, Diabetes, HighChol, Smoker | `hscvd/data.py`, `hscvd/config.py` |
-| 3.4 Hybrid sampling | SMOTEENN followed by Random Oversampling; 3,000 rows per class held out as the test set; remaining data split 80/20 into train/validation; Figs. 4–5 | `hscvd/sampling.py` |
-| 3.5 ML models | Decision tree (C4.5-style, entropy), linear SVM, XGBoost | `hscvd/models.py` |
-| 4 DL models | MinMax scaling → autoencoder (64-unit encoder) feature extraction → CNN / NN / MLP | `hscvd/models.py` |
-| 4 Metrics | Accuracy, precision, recall, F1, AUC (Eqs. 1–5), ROC, confusion matrix | `hscvd/evaluation.py` |
-| 5 Results | Tables 3, 4, 5, 7 and Figs. 6–16 | `run_experiments.py` |
+| 3.1–3.3 Data, preprocessing, feature selection | Load CSV, drop duplicates, class counts, Pearson correlation ranking; Figs. 2–3 | `hscvd/data.py`, `hscvd/plots.py` |
+| 3.4 Hybrid sampling | SMOTEENN followed by Random Oversampling | `hscvd/sampling.py` |
+| 3.5 Evaluation protocols | Protocol A (resample before split) and Protocol B (split before sampling) | `hscvd/sampling.py` |
+| 3.6 Improved pipeline | All 21 features, class weights, regularised models, threshold tuned on validation | `hscvd/models.py`, `hscvd/evaluation.py` |
+| 3.7 External evaluation | Improved pipeline on Cleveland, 5 × 5-fold cross-validation | `run_cleveland.py` |
+| 4 Models and metrics | DT, SVM, XGBoost, LR; autoencoder + CNN / NN / MLP; accuracy, precision, recall, F1, AUC | `hscvd/models.py`, `hscvd/evaluation.py` |
+| 5 Results | Tables 3–8, Figs. 4–9 | `run_experiments.py`, `run_improved.py`, `run_cleveland.py`, `make_paper_assets.py` |
 
 ## Setup
 
@@ -24,144 +27,101 @@ health indicators dataset (`data/heart_disease_health_indicators_BRFSS2015.csv`,
 pip install -r requirements.txt
 ```
 
-## Running
+## Reproducing the paper
 
 ```bash
-# Full reproduction, exactly as described in the paper
-python run_experiments.py
+# Table 3 and Fig. 4: baseline HS pipeline under Protocol A (resample before split)
+python run_experiments.py --out results/paper
 
-# Leakage-free evaluation (see "Evaluation protocols" below)
-python run_experiments.py --protocol strict --out results/strict
+# Table 5 (left): baseline HS pipeline under Protocol B
+python run_improved.py
 
-# Quick smoke test (~2 minutes)
+# Table 4 and the sampling statistics of Section 3.4 and 5.2
+python leakage_analysis.py
+
+# Table 6: ablation study
+python run_ablation.py
+
+# Table 5 (right), Table 7, Figs. 5-8: improved pipeline with 5-fold CV
+# (DL results depend on the training order, so the improved column of the
+# paper is taken from this run, not from run_improved.py above)
+python run_improved.py --no-baseline --cv --out results/improved_cv
+
+# Table 8, Cleveland rows
+python run_cleveland.py
+
+# Build the manuscript's figures and tables, then the PDF
+python make_paper_assets.py
+cd paper && latexmk -pdf main.tex
+```
+
+All runs use random seed 42, and TensorFlow runs deterministically, so
+repeated runs give identical numbers. The full set takes a few hours on a
+4-core CPU; a quick smoke test of the Protocol A pipeline runs in about two
+minutes:
+
+```bash
 python run_experiments.py --sample-frac 0.1 --epochs 1 --skip-cv --out results/smoke
 ```
 
-Useful options: `--sampling hs` (run only some sampling methods),
+Useful options of `run_experiments.py`: `--protocol paper|strict`
+(Protocol A or B), `--sampling hs` (run only some sampling methods),
 `--epochs N`, `--batch-size N`, `--no-autoencoder`, `--skip-cv`,
-`--test-per-class N`, `--verbose 1` (Keras progress bars).
-
-Outputs go to `results/` (or `--out`):
-
-```
-eda/       correlation_with_target.csv, fig2-fig5 (class / age distributions)
-splits/    <method>_{train,val,test}.csv for smoteenn, ros, hs
-tables/    table3_validation.csv, table4_test.csv,
-           table5_dl_cross_validation.csv, table7_ml_cross_validation.csv
-figures/   roc_<method>_{dl,ml}.png (Figs. 6-9), confusion_matrix_HS_*.png
-           (Figs. 10-12), learning_curve_HS_*.png (Figs. 13-16)
-```
-
-## Model details
-
-| Model | Architecture / settings |
-|---|---|
-| Autoencoder | Dense(64, ReLU) encoder → Dense(9, sigmoid) decoder, MSE, Adam, 10 epochs; the 64-d encoding is the input to CNN/NN/MLP |
-| CNN | Conv1D(8, k=2, ReLU) → MaxPool(2) → Flatten → Dense(16, ReLU) → Dense(1, sigmoid); 20 epochs |
-| NN | Dense(64, ReLU) → Dense(32, ReLU) → Dense(1, sigmoid); 10 epochs |
-| MLP | Dense(128) → Dense(64) → Dense(32) (ReLU) → Dense(1, sigmoid); 20 epochs |
-| DT | `DecisionTreeClassifier(criterion="entropy")` |
-| SVM | Linear kernel (`LinearSVC` on MinMax-scaled features) |
-| XGBoost | `XGBClassifier` defaults |
-
-All DL models use binary cross-entropy, Adam and batch size 32. Random seed 42.
+`--test-per-class N`, `--verbose 1`.
 
 ## Evaluation protocols
 
-**`--protocol paper` (default)** follows Section 3.4 exactly: the *entire*
-dataset is resampled with SMOTEENN + ROS, then 3,000 rows per class are drawn
-from the resampled data as the test set and the rest is split 80/20.
-Cross-validation (Tables 5 and 7) runs on that resampled pool.
+**Protocol A (`--protocol paper`, resample before split).** The *entire*
+dataset is resampled with SMOTEENN + ROS, then 3,000 records per class are
+drawn from the resampled data as the test set and the rest is split 80/20.
+Because ROS duplicates minority records and ENN deletes borderline ones,
+every positive test record has an identical copy in the training set and
+the hard cases are removed from the test set. Models reach 94.7–99.8%
+accuracy (fully grown DT 99.8%), which does not carry over to new patients.
 
-Because ROS duplicates minority rows and SMOTE creates synthetic points that
-sit between real ones, copies of the same patient end up in both training
-and test sets. Memorising models such as a fully grown decision tree or
-XGBoost score close to 100% in this setting. That is why the paper reports
-HS_DT at 99.7%.
+**Protocol B (`--protocol strict`, split before sampling).** The test set
+(3,000 real records per class) and the validation set are held out *before*
+any sampling; only the training data (and, in cross-validation, only the
+training folds) are resampled. This measures performance on real patients
+the models have never seen.
 
-**`--protocol strict`** keeps the test set (3,000 real records per class)
-and the validation set apart *before* any sampling, and resamples only the
-training data (and, in cross-validation, only the training folds). It shows
-how the models do on real patients they have never seen, and we recommend
-reporting it next to the paper numbers.
+## Results on real, unseen patients (Protocol B)
 
-## Improved pipeline (`run_improved.py`)
+6,000 real test records (3,000 per class); training 179,024 and validation
+44,757 real records. Accuracy / recall / F1 / AUC, in %:
 
-Tested under the strict protocol, the paper's design choices hurt the models
-on real, unseen patients. `run_improved.py` trains both setups on the same
-leakage-free split and compares them on the same 6,000 real test records:
-
-| Change | Why |
-|---|---|
-| Use all 21 features instead of the 9 correlation-selected ones | Pearson correlation misses useful signal (Sex, Income, BMI, Education, ...); XGBoost AUC 0.823 → 0.835 |
-| No resampling; class weights instead (`class_weight="balanced"`, `scale_pos_weight`) | SMOTEENN's synthetic points and ENN cleaning distort the data; XGBoost AUC with HS 0.743 vs. 0.823 without |
-| Tune the decision cut-off on the validation set (Youden's J) | With imbalanced data the right cut-off is not 0.5; this choice drives accuracy and F1 much more than resampling does |
-| Regularise the models: depth-limited DT (`max_depth=8`, `min_samples_leaf=50`), XGBoost with shallow trees, subsampling and early stopping on validation AUC, DL models with early stopping | A fully grown tree memorises records (57.4% on real patients) |
-| Add logistic regression | A strong, interpretable baseline on these mostly binary features |
-
-```bash
-python run_improved.py                          # all models, ~45 min on 4 CPUs
-python run_improved.py --models XGBoost LogReg DT --no-baseline   # ~2 min
-```
-
-Writes `results/improved/comparison.csv`, `roc_improved.png` and confusion
-matrices.
-
-Results of `python run_improved.py` on the full dataset (6,000 real test
-records, 3,000 per class; training 179,024 and validation 44,757 real records):
-
-| Model | Paper setup: Acc / Recall / F1 / AUC (%) | Improved: Acc / Recall / F1 / AUC (%) |
+| Model | Baseline HS pipeline | Improved pipeline |
 |---|---|---|
 | DT | 57.40 / 18.53 / 30.32 / 57.40 | **74.90 / 78.90 / 75.87 / 82.50** |
 | SVM | 70.78 / 60.17 / 67.31 / 81.06 | **75.98 / 80.37 / 76.99 / 83.67** |
 | XGBoost | 61.58 / 30.47 / 44.23 / 74.31 | **76.00 / 82.77 / 77.52 / 83.99** |
-| LogReg | — | 76.00 / 80.33 / 77.00 / 83.70 |
-| CNN | 66.85 / 48.70 / 59.50 / 77.58 | **75.80 / 81.73 / 77.16 / 83.74** |
-| NN | 64.48 / 40.07 / 53.01 / 74.67 | **76.00 / 81.17 / 77.18 / 83.80** |
-| MLP | 63.05 / 34.17 / 48.04 / 72.53 | **75.70 / 81.90 / 77.12 / 83.89** |
+| LR | — | **76.00 / 80.33 / 77.00 / 83.70** |
+| CNN | 66.85 / 48.70 / 59.50 / 77.58 | **75.55 / 80.07 / 76.61 / 83.41** |
+| NN | 64.48 / 40.07 / 53.01 / 74.67 | **75.88 / 78.80 / 76.57 / 83.85** |
+| MLP | 63.05 / 34.17 / 48.04 / 72.53 | **75.47 / 82.40 / 77.06 / 83.79** |
 
-Every model improves; the largest gains are in recall (heart disease cases
-found). All improved models converge to about 76% accuracy and 0.84 AUC,
-which is about the best this dataset supports: BRFSS answers are
-self-reported survey data. The 93–99% scores reported in the paper come
-from leakage between training and test data (see "Evaluation protocols"),
-not from better models.
+The improved pipeline makes four changes, each quantified in the paper's
+ablation study (Table 6):
 
-## Results
+| Change | Why |
+|---|---|
+| All 21 features instead of the 9 correlation-selected ones | Pearson correlation misses useful signal (sex, income, BMI, education); XGBoost AUC 0.823 → 0.835 |
+| Class weights instead of resampling | SMOTEENN and ENN cleaning distort the data; XGBoost AUC 0.743 with HS vs. 0.823 without |
+| Decision threshold tuned on the validation set (Youden's J) | With imbalanced data the right cut-off is not 0.5 |
+| Regularised models (depth-limited DT, shallow early-stopped XGBoost, early-stopped DL models) | A fully grown tree memorises records (57.4% on real patients) |
 
-`python run_experiments.py` writes Tables 3–5 and 7 to `results/paper/tables/`
-(and to `results/strict/tables/` with `--protocol strict`). With the paper
-protocol the code reproduces the paper's pattern, e.g. on a 10% sample
-HS_DT ≈ 99% and HS_XGBoost ≈ 98% test accuracy. On real, unseen patients
-the same models score far lower; see the table in "Improved pipeline".
+Applied unchanged to the Cleveland data, the improved pipeline reaches
+80.1–81.3% accuracy and an AUC of 0.893–0.900 (5 × 5-fold cross-validation).
 
-## Revised manuscript
+## Implementation notes
 
-`paper/` contains the revised manuscript (LaTeX source and compiled
-`main.pdf`) with all results above, and `paper/CHANGES.md` lists every
-change from the original. To rebuild it after re-running the experiments:
-
-```bash
-python run_improved.py                                   # paper vs improved
-python run_improved.py --no-baseline --cv --out results/improved_cv
-python make_paper_assets.py                              # figures + tables
-cd paper && latexmk -pdf main.tex
-```
-
-## Notes and differences from the paper
-
-- **Dataset size.** The paper reports 221,542 rows after removing
-  duplicates. The Kaggle CSV in `data/` has 253,680 rows, which leaves
-  229,781 after removing duplicates; the copy in
-  `../Early Detection of Cardiovascular Disease using DL/` has only 244,680
-  rows, which leaves 221,542. Use `--data` to switch between them.
-- **Autoencoder features.** The original notebook fed the autoencoder's
-  *reconstruction* into the classifiers. This code uses the 64-d encoder
-  output, which is the usual way to extract features. Use `--no-autoencoder`
-  to skip this step.
-- **SVM.** `SVC(kernel="linear")` cannot handle about 300k rows in a
-  practical time, so the code uses `LinearSVC`, which fits the same
-  linear-kernel model.
-- **AUC.** AUC is computed from continuous scores (probabilities or decision
-  values) rather than from hard labels.
-- **MLP.** The paper does not give the MLP's architecture; the 128-64-32 network above is our choice.
+- **Dataset copy.** The copy of the BRFSS CSV in
+  `../Early Detection of Cardiovascular Disease using DL/` is truncated
+  (244,680 rows, 221,542 after removing duplicates); the paper uses the full
+  file in `data/`. Use `--data` to switch.
+- **Autoencoder features.** The DL models use the 64-dimensional encoder
+  output as features; `--no-autoencoder` feeds the scaled features directly.
+- **SVM.** `SVC(kernel="linear")` cannot handle about 300k rows in practical
+  time, so the code uses `LinearSVC`, which fits the same linear-kernel model.
+- **AUC** is computed from continuous scores (probabilities or decision
+  values), not from hard labels.
