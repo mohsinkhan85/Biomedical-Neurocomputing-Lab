@@ -1,8 +1,7 @@
-# Hybrid Sampling and Machine Learning for CVD Prediction
+# A Leakage-Free ML Pipeline for CVD Prediction
 
-Code for the paper **"Hybrid Sampling and Machine Learning for
-Cardiovascular Disease Prediction: Data Leakage in Resample-Before-Split
-Evaluation and a Leakage-Free Pipeline"** (Daniyal, Jadoon, Miakhil, Iqbal,
+Code for the paper **"A Leakage-Free Machine Learning Pipeline for
+Cardiovascular Disease Prediction from Imbalanced Survey Data"** (Daniyal, Jadoon, Miakhil, Iqbal,
 Qureshi, Ullah, Rehman). The manuscript is in [`paper/`](paper/) and every
 table and figure in it can be regenerated from this code.
 
