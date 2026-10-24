@@ -17,7 +17,7 @@
 \usepackage[running]{lineno}
 \usepackage{authblk}
 \usepackage[hidelinks]{hyperref}
-\usepackage{url}
+\usepackage{xurl}
 
 \definecolor{absbg}{HTML}{FBEEDC}
 \definecolor{boxblue}{HTML}{2A78D6}
@@ -165,7 +165,7 @@ this study are as follows:
 
 \begin{itemize}
   \item A pipeline for CVD prediction was implemented, incorporating data
-    preprocessing, correlation-based feature selection, hybrid sampling
+    preprocessing, feature selection based on correlation, hybrid sampling
     (SMOTEENN followed by ROS) and systematic evaluation of six DL and ML
     models.
   \item We show, quantitatively, that resampling the dataset before
@@ -401,6 +401,7 @@ evaluation protocols compared throughout the paper.
 
 \begin{figure}[t]
 \centering
+\resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
   node distance=5mm and 6mm,
   box/.style={draw, rounded corners=2pt, fill=boxblue, text=white,
@@ -420,7 +421,7 @@ evaluation protocols compared throughout the paper.
   \draw[arr] (a1) -- (a2); \draw[arr] (a2) -- (a3); \draw[arr] (a3) -- (a4);
   \draw[arr] (a4) -- (a5);
   % Protocol B
-  \node[lbl, below=17mm of la.west, anchor=west] (lb) {(b) Protocol B: split before any sampling (leakage-free)};
+  \node[lbl, anchor=west] (lb) at ([yshift=-6mm]la.west |- a3.south) {(b) Protocol B: split before any sampling (leakage-free)};
   \node[box, below=4mm of lb.south west, anchor=north west] (b1) {Dataset};
   \node[good, right=of b1] (b2) {Test set\\3,000/class\\(real records)};
   \node[good, right=of b2] (b3) {Train 80\%\\Valid. 20\%\\(real records)};
@@ -431,7 +432,7 @@ evaluation protocols compared throughout the paper.
   \node[box, below=6mm of b5] (b6) {Evaluate on\\held-out test set};
   \draw[arr] (b5) -- (b6);
   \draw[arr, dashed] (b2.south) |- (b6.west);
-\end{tikzpicture}
+\end{tikzpicture}}
 \caption{Proposed methodology. (a) In the resample-before-split protocol used
 by the original pipeline, synthetic, duplicated and cleaned records are
 created before the test set is drawn. (b) In the leakage-free protocol the

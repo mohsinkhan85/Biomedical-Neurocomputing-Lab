@@ -135,6 +135,19 @@ protocol the code reproduces the paper's pattern, e.g. on a 10% sample
 HS_DT ≈ 99% and HS_XGBoost ≈ 98% test accuracy. On real, unseen patients
 the same models score far lower; see the table in "Improved pipeline".
 
+## Revised manuscript
+
+`paper/` contains the revised manuscript (LaTeX source and compiled
+`main.pdf`) with all results above, and `paper/CHANGES.md` lists every
+change from the original. To rebuild it after re-running the experiments:
+
+```bash
+python run_improved.py                                   # paper vs improved
+python run_improved.py --no-baseline --cv --out results/improved_cv
+python make_paper_assets.py                              # figures + tables
+cd paper && latexmk -pdf main.tex
+```
+
 ## Notes and differences from the paper
 
 - **Dataset size.** The paper reports 221,542 rows after removing

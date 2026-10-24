@@ -295,9 +295,12 @@ on the 223,781 real records that are not in the test set. In every fold,
 20\% of the training portion was set aside for early stopping and threshold
 tuning, and the held-out fold kept the real prevalence of about 10.3\%.
 Table~\ref{tab:cv} reports the mean and standard deviation over the folds.
-The AUC (0.82--0.84) and recall (about 79--82\%) agree with the test-set
-results and vary little between folds (standard deviation below 0.5
-percentage points for the AUC), confirming that the estimates are stable.
+The AUC (0.824--0.839) and recall (78.9--82.5\%) agree with the test-set
+results and vary little between folds (standard deviation of the AUC at
+most 0.64 percentage points), confirming that the estimates are stable.
+Accuracy (70.8--72.2\%) is lower than on the balanced test set because the
+tuned threshold trades specificity for sensitivity and negatives make up
+almost 90\% of each fold.
 
 \begin{table}[t]
 \centering
