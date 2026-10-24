@@ -228,10 +228,10 @@ logistic regression performs on par with XGBoost and the three DL models.
 The confusion matrices (Fig.~\ref{fig:cmB}) show a balanced error profile:
 the improved XGBoost correctly identifies 2,483 of 3,000 CVD cases and
 2,077 of 3,000 non-CVD cases. The learning curves of the DL models
-(Fig.~\ref{fig:lcB}) show the validation loss decreasing for about ten
-epochs and then levelling off; training stops three epochs after the last
-improvement and the best weights are restored, which prevents
-over-fitting. The training loss is computed with class weights and is
+(Fig.~\ref{fig:lcB}) show the validation loss reaching its minimum after
+6 (CNN), 11 (MLP) and 17 (NN) epochs and then levelling off; training stops
+three epochs after the last improvement and the weights of the best epoch
+are restored, which prevents over-fitting. The training loss is computed with class weights and is
 therefore not directly comparable to the unweighted validation loss.
 
 \begin{figure}[t]
@@ -324,42 +324,91 @@ tests.
 \label{sec:compare}
 
 Table~\ref{tab:literature} compares the proposed method with existing
-studies. With a few exceptions, previous studies achieved accuracy rates
-between 82\% and 96\%, and studies on small datasets such as the Cleveland
-heart disease data (303 records) report the highest values. These figures
-are not directly comparable: the studies use different datasets with
-different clinical variables, and several do not state whether resampling
-or feature selection was performed before the data were split. Our results
-show that this choice alone can change the reported accuracy of the same
-model on the same data from 57\% to 99.8\%. For the proposed method we
-therefore report the leakage-free results on 6,000 real BRFSS records. Of
-the studies listed, Amarbayasgalan et al.~\cite{amarbayasgalan} used the
-KNHANES survey (25,340 records), which is closest in nature to BRFSS.
+studies. A meaningful comparison requires the same dataset and an
+evaluation protocol that keeps the test data unseen, so the table is
+organised by dataset.
+
+\paragraph{Same dataset (BRFSS 2015).} Studies that use the same survey
+data report AUC values of 0.81--0.84. Deng et al.~\cite{deng} trained a
+LightGBM model on BRFSS 2015 and obtained an AUC of 0.811 with 90.6\%
+accuracy, and Hasnat et al.~\cite{hasnat} reported an AUC of 0.837 and a
+recall of 80.0\% for a weighted LightGBM--XGBoost--CNN ensemble trained with
+class weighting on the same 229,781 records. Fernando et
+al.~\cite{fernando} compared sampling methods on this dataset and found
+hybrid methods (SMOTEENN, SMOTETomek) to perform best. The proposed
+XGBoost achieves the highest AUC (0.840) and recall (82.8\%) in this group,
+and our logistic regression (0.837) and MLP (0.838) are on par with the
+best previously reported AUC. Accuracy is not comparable across these studies: at the natural
+prevalence of 10.3\%, a classifier that always predicts ``no CVD'' already
+reaches 89.7\% accuracy, so the accuracies of about 90\% reported at the
+natural prevalence mainly reflect the class imbalance, whereas our accuracy
+is measured on a balanced test set.
+
+\paragraph{Cleveland dataset.} Most published studies, including four in
+Table~\ref{tab:literature}, use the UCI Cleveland heart disease
+data~\cite{detrano}: 303 hospital patients described by 13 clinical
+measurements such as chest-pain type, resting ECG, maximum exercise heart
+rate, exercise-induced ST depression and thallium scintigraphy. To compare
+on equal terms, we applied the improved pipeline, unchanged, to this dataset
+(PMLB version~\cite{pmlb}; the 6 patients with missing values were removed,
+leaving 297, of whom 137 have heart disease). Categorical variables were
+one-hot encoded, and the models were evaluated with five repetitions of
+stratified five-fold cross-validation; in every fold, early stopping and
+threshold tuning used only the training portion. CLEVELAND_RESULTS
+
+\paragraph{Other datasets.} The remaining studies use other clinical
+datasets (a CVD dataset, a Beijing hypertension cohort and the KNHANES
+survey) and are listed for completeness; their results are not directly
+comparable with ours.
+
+Two factors explain why studies on clinical data report higher accuracy
+than any model trained on BRFSS. First, clinical measurements carry far
+more information about coronary disease than self-reported survey answers:
+on Cleveland, the same pipeline that reaches an AUC of 0.84 on BRFSS
+achieves CLEVELAND_AUC. Second, accuracies estimated on a few dozen test
+patients vary by several percentage points between random splits, and
+several studies do not state whether resampling or feature selection was
+performed before the data were split; as Section~\ref{sec:leak} shows, this
+choice alone can change the accuracy of the same model on the same data from
+57\% to 99.8\%.
 
 \begin{table}[t]
 \centering
-\caption{Comparison of the proposed method with existing studies. The
-proposed results are leakage-free (Protocol B, real held-out test set).}
+\caption{Comparison with existing studies, grouped by dataset. All values
+in \%. Proposed results are leakage-free: BRFSS on the real, balanced
+held-out test set (Protocol B); Cleveland as mean $\pm$ standard deviation
+of 5$\times$5-fold cross-validation.}
 \label{tab:literature}
-\footnotesize
-\setlength{\tabcolsep}{3pt}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{lllccccc}
 \toprule
-Study & Dataset & Method & Acc. (\%) & Prec. (\%) & Rec. (\%) & F1 (\%) & AUC (\%) \\
+Study & Dataset ($n$) & Method & Acc. & Prec. & Rec. & F1 & AUC \\
 \midrule
+\multicolumn{8}{l}{\emph{Same dataset: BRFSS 2015 (self-reported survey)}} \\
+L. Deng et al.~\cite{deng} & BRFSS 2015 & LightGBM & 90.61$^{a}$ & 73.89$^{a}$ & -- & -- & 81.11 \\
+M. A. Hasnat et al.~\cite{hasnat}$^{b}$ & BRFSS (229,781) & Weighted ensemble & -- & -- & 80.00 & -- & 83.71 \\
+\inputrows{tables/literature_brfss.tex}
+\midrule
+\multicolumn{8}{l}{\emph{Cleveland heart disease data (clinical measurements)}} \\
+S. K. Mohan et al.~\cite{mohan} & Cleveland (303) & Hybrid (HRFLM) & 88.40 & 90.10 & 92.80 & 90.00 & -- \\
+N. L. Fitriyani et al.~\cite{fitriyani} & Cleveland (303) & SMOTEENN + XGBoost & 95.90 & 97.14 & 94.67 & 95.35 & -- \\
+A. A. Almazroi et al.~\cite{almazroi} & Cleveland (303) & DNN & 82.49 & -- & 87.24 & 84.41 & -- \\
+J. P. Li et al.~\cite{li} & Cleveland (303) & SVM (Linear) & 85.00 & -- & 75.00 & -- & -- \\
+\inputrows{tables/literature_cleveland.tex}
+\midrule
+\multicolumn{8}{l}{\emph{Other datasets (not directly comparable)}} \\
 M. Bhatt et al.~\cite{bhatt} & CVD dataset & XGBoost & 87.02 & 89.62 & 82.11 & 86.30 & 95.00 \\
-S. K. Mohan et al.~\cite{mohan} & Cleveland & Hybrid (HRFLM) & 88.40 & 90.10 & 92.80 & 90.00 & -- \\
-N. L. Fitriyani et al.~\cite{fitriyani} & Cleveland & SMOTEENN + XGBoost & 95.90 & 97.14 & 94.67 & 95.35 & -- \\
 W. Chang et al.~\cite{chang} & Beijing dataset & Hybrid XGBSVM & 91.70 & -- & -- & -- & 93.90 \\
-A. A. Almazroi et al.~\cite{almazroi} & Cleveland & DNN & 82.49 & -- & 87.24 & 84.41 & -- \\
-J. P. Li et al.~\cite{li} & Cleveland & SVM (Linear) & 85.00 & -- & 75.00 & -- & -- \\
-T. Amarbayasgalan et al.~\cite{amarbayasgalan} & KNHANES & Two DNNs & 89.20 & 91.10 & 92.00 & 91.50 & 97.54 \\
-\midrule
-Proposed (improved) & BRFSS & XGBoost & 76.00 & 72.90 & 82.77 & 77.52 & 83.99 \\
-Proposed (improved) & BRFSS & Logistic regression & 76.00 & 73.93 & 80.33 & 77.00 & 83.70 \\
-Proposed (improved) & BRFSS & MLP & 75.47 & 72.37 & 82.40 & 77.06 & 83.79 \\
+T. Amarbayasgalan et al.~\cite{amarbayasgalan} & KNHANES (25,340) & Two DNNs & 89.20 & 91.10 & 92.00 & 91.50 & 97.54 \\
 \bottomrule
 \end{tabular}
+
+\smallskip
+\parbox{\linewidth}{\scriptsize $^{a}$Measured at the natural prevalence
+($\approx$10\% CVD), where always predicting ``no CVD'' gives 89.7\%
+accuracy; not comparable with accuracy on a balanced test set.
+$^{b}$Preprint.}
 \end{table}
 
 \subsection{Limitations}

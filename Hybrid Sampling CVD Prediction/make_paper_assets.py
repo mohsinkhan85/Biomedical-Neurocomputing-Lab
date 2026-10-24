@@ -152,12 +152,42 @@ def write_cv_table(path):
         f.write("\n".join(lines) + "\n")
 
 
+def write_literature_rows(path, frame, dataset, models=("XGBoost", "LogReg", "MLP"),
+                          std=None):
+    """'Proposed' rows of the literature table (Table 8) for one dataset."""
+    names = {"XGBoost": "XGBoost", "LogReg": "Logistic regression", "MLP": "MLP"}
+    lines = []
+    for model in models:
+        row = frame.loc[model]
+        cells = ["Proposed (improved)", dataset, names[model]]
+        for column in ("Accuracy (%)", "Precision (%)", "Recall (%)",
+                       "F1 Score (%)", "AUC (%)"):
+            cell = _fmt(row[column])
+            if std is not None:
+                cell += f" $\\pm$ {std.loc[model, column]:.1f}"
+            cells.append(cell)
+        lines.append(" & ".join(cells) + r" \\")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main():
     os.makedirs(FIGURES, exist_ok=True)
     os.makedirs(TABLES, exist_ok=True)
     write_test_table(os.path.join(TABLES, "protocol_b_test.tex"))
     if os.path.exists(os.path.join(RESULTS, "improved_cv", "cv_improved.csv")):
         write_cv_table(os.path.join(TABLES, "cv_improved.tex"))
+    _, improved = comparison_table()
+    write_literature_rows(os.path.join(TABLES, "literature_brfss.tex"),
+                          improved, "BRFSS (229,781)")
+    cleveland = os.path.join(RESULTS, "cleveland", "cleveland_summary.csv")
+    if os.path.exists(cleveland):
+        summary = pd.read_csv(cleveland).set_index("Model")
+        means = summary[[c for c in summary.columns if not c.endswith(" std")]]
+        stds = summary[[c for c in summary.columns if c.endswith(" std")]]
+        stds.columns = [c[:-4] for c in stds.columns]
+        write_literature_rows(os.path.join(TABLES, "literature_cleveland.tex"),
+                              means, "Cleveland (297)", std=stds)
     plot_improved(os.path.join(FIGURES, "improved_results.png"))
     plot_learning_curves(os.path.join(FIGURES, "improved_learning_curves.png"))
     copies = {
