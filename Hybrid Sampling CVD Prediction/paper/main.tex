@@ -84,7 +84,8 @@ patients, to 74.9--76.0\% accuracy, 78.8--82.8\% recall and an AUC of
 recall 30.5\% $\rightarrow$ 82.8\%), with five-fold cross-validation
 confirming these values (AUC 0.82--0.84). Simple models such as logistic
 regression perform on par with deep networks. On the same BRFSS data the
-improved pipeline attains the highest AUC reported to date, and applied
+improved pipeline exceeds the AUC of a published LightGBM model (0.840 vs.
+0.811), and applied
 unchanged to the clinical Cleveland dataset it reaches 80--81\% accuracy and
 an AUC of 0.89--0.90. The results show that the evaluation protocol, not the
 choice of model, dominates reported performance on imbalanced health data,
@@ -186,7 +187,8 @@ this study are as follows:
     0.84, confirmed by five-fold cross-validation, and an ablation study
     that attributes the gain to each change.
   \item We compare the improved pipeline with published studies on equal
-    terms: on the same BRFSS data it attains the highest reported AUC, and
+    terms: on the same BRFSS data it exceeds the AUC of a published model
+    (0.840 vs.\ 0.811), and
     applied unchanged to the clinical Cleveland dataset it reaches an AUC
     of 0.89--0.90.
   \item The complete code is released as open source so that every number
@@ -265,7 +267,11 @@ GridSearchCV improves diagnostic accuracy. Ramesh et al.~\cite{ramesh}
 developed predictive models with logistic regression, DT and SVM and
 evaluated them on real-world data with precision, recall and F1-score,
 emphasising that the algorithm should be chosen to suit the characteristics
-of the data.
+of the data. Population survey data have also been used: Deng et
+al.~\cite{deng} trained an interpretable LightGBM model on the BRFSS 2015
+survey used in this study and, with SHAP analysis, identified age, smoking
+status, diabetes, hypertension and high cholesterol as the most influential
+predictors.
 
 Several studies combine multiple models or feature selection steps. Mohan
 et al.~\cite{mohan} integrated a hybrid random forest with a linear model
@@ -306,11 +312,7 @@ balancing the training data can improve classifier performance; their work
 is a standard reference for hybrid sampling. In the cardiovascular domain,
 Ishaq et al.~\cite{ishaq} used SMOTE to generate synthetic instances of the
 minority class for heart failure survival prediction and reported accuracies
-of 85\% to 94\% with KNN, NB, DT, XGBoost and Random Forests. Most closely
-related to this study, Fernando et al.~\cite{fernando} used the same BRFSS
-2015 heart disease dataset, compared seven classifiers with eight
-resampling methods, and found that the hybrid methods SMOTEENN and
-SMOTETomek performed best.
+of 85\% to 94\% with KNN, NB, DT, XGBoost and Random Forests.
 
 \subsection{Data Leakage in Model Evaluation}
 

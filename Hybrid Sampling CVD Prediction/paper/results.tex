@@ -333,17 +333,11 @@ studies. A meaningful comparison requires the same dataset and an
 evaluation protocol that keeps the test data unseen, so the table is
 organised by dataset.
 
-\paragraph{Same dataset (BRFSS 2015).} Studies that use the same survey
-data report AUC values of 0.81--0.84. Deng et al.~\cite{deng} trained a
-LightGBM model on BRFSS 2015 and obtained an AUC of 0.811 with 90.6\%
-accuracy, and Hasnat et al.~\cite{hasnat} reported an AUC of 0.837 and a
-recall of 80.0\% for a weighted LightGBM--XGBoost--CNN ensemble trained with
-class weighting on the same 229,781 records. Fernando et
-al.~\cite{fernando} compared sampling methods on this dataset and found
-hybrid methods (SMOTEENN, SMOTETomek) to perform best. The proposed
-XGBoost achieves the highest AUC (0.840) and recall (82.8\%) in this group,
-and our logistic regression (0.837) and MLP (0.838) are on par with the
-best previously reported AUC. Accuracy is not comparable across these studies: at the natural
+\paragraph{Same dataset (BRFSS 2015).} Deng et al.~\cite{deng} trained a
+LightGBM model on the same survey data and obtained an AUC of 0.811 with
+90.6\% accuracy. All three proposed models in the table exceed this AUC:
+XGBoost reaches 0.840 with a recall of 82.8\%, and logistic regression and
+the MLP reach 0.837 and 0.838. Accuracy is not comparable across these studies: at the natural
 prevalence of 10.3\%, a classifier that always predicts ``no CVD'' already
 reaches 89.7\% accuracy, so the accuracies of about 90\% reported at the
 natural prevalence mainly reflect the class imbalance, whereas our accuracy
@@ -395,7 +389,6 @@ Study & Dataset ($n$) & Method & Acc. & Prec. & Rec. & F1 & AUC \\
 \midrule
 \multicolumn{8}{l}{\emph{Same dataset: BRFSS 2015 (self-reported survey)}} \\
 L. Deng et al.~\cite{deng} & BRFSS 2015 & LightGBM & 90.61$^{a}$ & 73.89$^{a}$ & -- & -- & 81.11 \\
-M. A. Hasnat et al.~\cite{hasnat}$^{b}$ & BRFSS (229,781) & Weighted ensemble & -- & -- & 80.00 & -- & 83.71 \\
 \inputrows{tables/literature_brfss.tex}
 \midrule
 \multicolumn{8}{l}{\emph{Cleveland heart disease data (clinical measurements)}} \\
@@ -415,8 +408,7 @@ T. Amarbayasgalan et al.~\cite{amarbayasgalan} & KNHANES (25,340) & Two DNNs & 8
 \smallskip
 \parbox{\linewidth}{\scriptsize $^{a}$Measured at the natural prevalence
 ($\approx$10\% CVD), where always predicting ``no CVD'' gives 89.7\%
-accuracy; not comparable with accuracy on a balanced test set.
-$^{b}$Preprint.}
+accuracy; not comparable with accuracy on a balanced test set.}
 \end{table}
 
 \subsection{Limitations}

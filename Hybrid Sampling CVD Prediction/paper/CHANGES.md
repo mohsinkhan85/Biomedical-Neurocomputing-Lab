@@ -29,7 +29,7 @@ AUC 0.84, confirmed by 5-fold cross-validation).
 | Abstract | Rewritten with leakage-free results |
 | 1 Introduction | Added class-imbalance / leakage motivation; contributions updated |
 | 1 Introduction (flow) | Related-application citations moved next to the DL background; new paragraph states what this study does before the contributions; contributions include the external comparison |
-| 2 Literature review | Reorganised into 2.1 ML for CVD, 2.2 class imbalance, 2.3 data leakage, 2.4 research gap; 3 leakage references added (Kaufman 2012, Kapoor & Narayanan 2023, Santos 2018); Fernando et al. and Fitriyani et al. descriptions corrected to match the sources and Table 8 |
+| 2 Literature review | Reorganised into 2.1 ML for CVD, 2.2 class imbalance, 2.3 data leakage, 2.4 research gap; 3 leakage references added (Kaufman 2012, Kapoor & Narayanan 2023, Santos 2018); Fitriyani et al. description corrected to match Table 8; Deng et al. 2025 (same BRFSS data) added; Fernando et al. (original ref. [14]) removed at the authors' request |
 | 3 Methodology | New Fig. 1 (both protocols, features shown in both); HS subsection explains how sampling changes the data (stroke share among CVD cases 16.6% → 40.3%); new Section 3.7 (external evaluation on Cleveland); dataset numbers updated to the full Kaggle file (229,781 unique records); hybrid sampling described precisely; new Sections 3.5 (protocols) and 3.6 (improved pipeline) |
 | 4 Architecture | Exact model architectures and hyper-parameters; LR added |
 | 5 Results | Table 3: Protocol A results (reproduced + originally reported); new leakage analysis (Table 4); Table 5: Protocol B, original vs improved; Fig. 5: improved results; Table 6: ablation; Figs. 6–8: improved ROC, confusion matrices, learning curves; Table 7: leakage-free 5-fold CV (replaces original Tables 5 and 7, which shared the leakage); Table 8: literature comparison grouped by dataset (same BRFSS data, Cleveland with our own leakage-free results, other datasets); limitations |
@@ -43,9 +43,9 @@ AUC 0.84, confirmed by 5-fold cross-validation).
 - Text gave MLP accuracy 97.42%; the table showed 97.34%.
 - Fig. 6 caption said "SMOTE" for SMOTEENN.
 - References [19] and [39] were the same paper (merged).
-- Two affiliations were both numbered 2. **We assumed Muhammad Bilal Qureshi
-  holds both the COMSATS (ECE) and the Central Asian University affiliations;
-  please verify.**
+- Two affiliations were both numbered 2. Muhammad Bilal Qureshi holds both
+  the COMSATS (ECE) and the Central Asian University affiliations
+  (confirmed by the authors).
 - Dataset size: the original text cites 253,680 records but 221,542 after
   deduplication, which corresponds to a truncated copy of the CSV (244,680
   rows). The revised paper uses the full Kaggle file (229,781 unique rows).
