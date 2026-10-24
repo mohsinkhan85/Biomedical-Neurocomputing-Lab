@@ -5,9 +5,9 @@ import pandas as pd
 from sklearn.metrics import (accuracy_score, confusion_matrix, f1_score,
                              precision_score, recall_score, roc_auc_score,
                              roc_curve)
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
-from .config import N_FOLDS, RANDOM_STATE
+from .config import N_FOLDS, RANDOM_STATE, VALIDATION_SIZE
 from .data import split_xy
 from .sampling import resample
 
@@ -23,10 +23,9 @@ def compute_metrics(y_true, y_pred, y_score):
     }
 
 
-def tune_threshold(model, df):
+def tune_threshold(model, X, y):
     """Set model.threshold to the cut-off that maximises Youden's J
-    (sensitivity + specificity - 1) on df, usually the validation set."""
-    X, y = split_xy(df)
+    (sensitivity + specificity - 1) on (X, y), usually the validation set."""
     fpr, tpr, thresholds = roc_curve(y, model.predict_scores(X))
     best = np.argmax(tpr - fpr)
     model.threshold = float(min(thresholds[best], 1.0))
@@ -44,11 +43,14 @@ def evaluate(model, df):
 
 
 def cross_validate(model_factory, pool, n_folds=N_FOLDS, resample_method=None,
-                   random_state=RANDOM_STATE):
+                   tune=False, random_state=RANDOM_STATE):
     """Stratified k-fold CV; a fresh model is trained on every fold.
 
-    If resample_method is given, only the training portion of each fold is
-    resampled (used by the strict protocol, where the pool is real data).
+    model_factory(y_train) returns an unfitted model. If resample_method is
+    given, only the training portion of each fold is resampled (used by the
+    strict protocol, where the pool is real data). If tune is True, 20% of
+    each training portion is set aside as a validation set for early
+    stopping and for tuning the decision threshold.
     """
     X, y = split_xy(pool)
     folds = StratifiedKFold(n_splits=n_folds, shuffle=True,
@@ -56,9 +58,16 @@ def cross_validate(model_factory, pool, n_folds=N_FOLDS, resample_method=None,
     rows = []
     for fold, (tr_idx, te_idx) in enumerate(folds.split(X, y), start=1):
         X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
+        X_val = y_val = None
+        if tune:
+            X_tr, X_val, y_tr, y_val = train_test_split(
+                X_tr, y_tr, test_size=VALIDATION_SIZE, stratify=y_tr,
+                random_state=random_state)
         if resample_method:
             X_tr, y_tr = resample(X_tr, y_tr, resample_method, random_state)
-        model = model_factory().fit(X_tr, y_tr)
+        model = model_factory(y_tr).fit(X_tr, y_tr, X_val, y_val)
+        if tune:
+            tune_threshold(model, X_val, y_val)
         X_te, y_te = X.iloc[te_idx], y.iloc[te_idx]
         metrics = compute_metrics(y_te, model.predict(X_te),
                                   model.predict_scores(X_te))

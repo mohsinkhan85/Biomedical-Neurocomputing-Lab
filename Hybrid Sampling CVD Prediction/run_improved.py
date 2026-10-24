@@ -10,12 +10,15 @@ else, and only the training data is used for fitting.
               regularised / early-stopped models, decision cut-off tuned on
               the validation set (Youden's J)
 
-Outputs (under --out): comparison.csv, roc_improved.png and a confusion
-matrix per improved model.
+Outputs (under --out): comparison.csv, roc_improved.png, a confusion
+matrix per improved model, learning curves of the improved DL models and,
+with --cv, cv_improved.csv (5-fold cross-validation of the improved models
+on the real training pool, threshold tuned inside every fold).
 
 Example:
     python run_improved.py
     python run_improved.py --models XGBoost LogReg   # ML models only, fast
+    python run_improved.py --no-baseline --cv        # improved models + CV
 """
 
 import argparse
@@ -26,7 +29,8 @@ import pandas as pd
 
 from hscvd import config, plots
 from hscvd.data import load_dataset, split_xy
-from hscvd.evaluation import evaluate, format_table, tune_threshold
+from hscvd.evaluation import (cross_validate, evaluate, format_table,
+                              tune_threshold)
 from hscvd.models import build_improved_model, build_model
 from hscvd.sampling import build_splits, resample_df
 from run_experiments import set_seeds
@@ -47,6 +51,8 @@ def parse_args():
     p.add_argument("--epochs", type=int, default=30,
                    help="maximum epochs for the DL models (early stopping applies)")
     p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument("--cv", action="store_true",
+                   help="also run 5-fold cross-validation of the improved models")
     p.add_argument("--verbose", type=int, default=0)
     return p.parse_args()
 
@@ -83,7 +89,7 @@ def main():
                                      batch_size=args.batch_size,
                                      verbose=args.verbose)
         model.fit(X_train, y_train, *split_xy(splits["val"]))
-        threshold = tune_threshold(model, splits["val"])
+        threshold = tune_threshold(model, *split_xy(splits["val"]))
         metrics, y_true, y_score, cm = evaluate(model, splits["test"])
         rows.append({"Setup": "improved", "Model": name,
                      "Threshold": threshold, **metrics})
@@ -91,6 +97,10 @@ def main():
         plots.plot_confusion_matrix(
             cm, os.path.join(args.out, f"confusion_matrix_{name}.png"),
             title=f"Improved {name} Confusion Matrix (Test)")
+        if model.history:
+            plots.plot_learning_curves(
+                model.history, f"Improved {name}",
+                os.path.join(args.out, f"learning_curve_{name}.png"))
         _report(rows[-1], t0)
 
     table = pd.DataFrame(rows)
@@ -98,6 +108,23 @@ def main():
     plots.plot_roc(curves, os.path.join(args.out, "roc_improved.png"),
                    title="ROC of Improved Models (Real Test Set)")
     print("\n" + format_table(table))
+
+    if args.cv:
+        # Cross-validate on all real non-test records (training + validation).
+        pool = pd.concat([splits["train"], splits["val"]], ignore_index=True)
+        cv_tables = []
+        for name in args.models:
+            print(f"-- 5-fold CV: improved {name}")
+            cv_table = cross_validate(
+                lambda y, n=name: build_improved_model(
+                    n, y, epochs=args.epochs, batch_size=args.batch_size,
+                    verbose=args.verbose),
+                pool, tune=True)
+            cv_table.insert(0, "Model", name)
+            cv_tables.append(cv_table)
+        cv_table = pd.concat(cv_tables, ignore_index=True)
+        cv_table.to_csv(os.path.join(args.out, "cv_improved.csv"), index=False)
+        print("\n" + format_table(cv_table))
     print(f"\nResults written to {args.out}")
 
 

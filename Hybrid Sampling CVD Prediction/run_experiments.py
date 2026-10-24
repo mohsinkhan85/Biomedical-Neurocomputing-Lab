@@ -164,7 +164,7 @@ def main():
             fold_method = method if args.protocol == "strict" else None
             for name in model_names:
                 print(f"-- 5-fold CV: {label}_{name}")
-                table = cross_validate(lambda n=name: build_model(n, **dl_kwargs),
+                table = cross_validate(lambda y, n=name: build_model(n, **dl_kwargs),
                                        splits["pool"], resample_method=fold_method)
                 table.insert(0, "Model", f"{label}_{name}")
                 (dl_cv if name in config.DL_MODELS else ml_cv).append(table)

@@ -1,0 +1,52 @@
+This study combined hybrid sampling (SMOTEENN followed by ROS) with three
+DL models (CNN, NN, MLP) and three classical ML models (DT, SVM, XGBoost)
+for CVD prediction from the 2015 BRFSS survey, and evaluated them under two
+protocols. When the full dataset is resampled before it is split, the
+models report 94.7--99.8\% test accuracy. We showed that this performance
+is an artefact of data leakage: every positive test record has an exact
+copy in the training set, and the ENN step removes a fifth of the real
+non-CVD records, the borderline cases, before the test set is drawn. On
+6,000 real records held out before any sampling, the same models reach
+only 57.4--70.8\% accuracy, and the fully grown decision tree that appeared
+best falls to near chance level.
+
+We therefore proposed a leakage-free pipeline that uses all available
+features, handles class imbalance with class weights instead of synthetic
+records, regularises the models and tunes the decision threshold on a
+validation set. On real, unseen records it improves every model, to about
+76\% accuracy, 80\% recall and an AUC of 0.84, values that five-fold
+cross-validation confirms. The technical observations of this study are:
+
+\begin{itemize}
+  \item The evaluation protocol dominates the reported performance. Any
+    resampling, cleaning or duplication must be applied after the test
+    data have been set aside, and only to the training data; otherwise
+    accuracy on imbalanced clinical data can be overstated by more than
+    40 percentage points.
+  \item On real data, hybrid sampling did not improve discrimination: it
+    lowered the AUC of XGBoost from 0.823 to 0.743. Class weighting and a
+    tuned decision threshold address imbalance without distorting the data.
+  \item Correlation-based selection of nine features discarded useful
+    information; using all 21 features raised the AUC.
+  \item Model choice matters far less than data handling. Logistic
+    regression, SVM, XGBoost and the three DL models all reach an AUC of
+    0.83--0.84, so simple and interpretable models are a sound choice for
+    this task.
+  \item At the real prevalence of about 10\%, a model that detects 80\% of
+    CVD cases still produces about three false alarms for every true case
+    (precision about 23\%). Survey-based models are therefore suited to
+    low-cost screening and risk stratification that triggers clinical
+    follow-up, not to diagnosis.
+\end{itemize}
+
+Future work should validate the pipeline on external cohorts and later
+BRFSS survey years, study the calibration of the predicted probabilities,
+and add clinical measurements (for example blood pressure readings, lipid
+profiles and ECG data), which are likely needed to move beyond the
+performance ceiling of self-reported data. Explainability methods such as
+SHAP values could make the models' risk factors transparent to clinicians,
+and threshold selection could be aligned with the costs of missed cases
+and false alarms in a specific screening programme. We also encourage
+authors of CVD prediction studies to report the point at which resampling
+is applied and to release their code, so that results can be verified and
+compared.

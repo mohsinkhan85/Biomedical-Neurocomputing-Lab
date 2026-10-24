@@ -1,0 +1,725 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds}
+\usepackage[running]{lineno}
+\usepackage{authblk}
+\usepackage[hidelinks]{hyperref}
+\usepackage{url}
+
+\definecolor{absbg}{HTML}{FBEEDC}
+\definecolor{boxblue}{HTML}{2A78D6}
+\definecolor{boxred}{HTML}{A61B29}
+\definecolor{boxgreen}{HTML}{1B7F4B}
+
+\captionsetup{font=small,labelfont=bf}
+% Expandable \input, usable for table rows directly before \bottomrule.
+\makeatletter
+\newcommand\inputrows[1]{\@@input #1 }
+\makeatother
+\renewcommand\Affilfont{\small\bfseries}
+\renewcommand\Authfont{\bfseries}
+
+\title{Hybrid Sampling and Machine Learning for Cardiovascular Disease Prediction:
+Data Leakage in Resample-Before-Split Evaluation and a Leakage-Free Pipeline}
+
+\author[1]{Muhammad Daniyal}
+\author[1]{Muhammad Mohsin Jadoon}
+\author[1]{Obaidullah Miakhil}
+\author[1]{Arshad Iqbal}
+\author[2,3]{Muhammad Bilal Qureshi}
+\author[4]{Ihsan Ullah}
+\author[5]{Ateeq Ur Rehman}
+\affil[1]{School of Computing Sciences, PAF-IAST, Haripur, Pakistan}
+\affil[2]{Department of Electrical and Computer Engineering, COMSATS University Islamabad (Abbottabad Campus), Pakistan}
+\affil[3]{School of Engineering (Computer Science Department), Central Asian University, Tashkent, Uzbekistan}
+\affil[4]{Department of Electrical Engineering, COMSATS University Islamabad (Abbottabad Campus), Pakistan}
+\affil[5]{School of Computing, Gachon University, Seongnam 13120, Republic of Korea}
+\date{}
+
+\begin{document}
+
+\maketitle
+\linenumbers
+
+\noindent Corresponding author:\\
+\href{mailto:mohsin.khan@spcai.paf-iast.edu.pk}{mohsin.khan@spcai.paf-iast.edu.pk}
+
+\section*{ABSTRACT}
+\noindent\colorbox{absbg}{\parbox{\dimexpr\linewidth-2\fboxsep}{\small
+Cardiovascular disease (CVD) remains one of the foremost causes of death
+globally, and machine learning (ML) models trained on population health
+surveys are widely proposed for early risk screening. Because CVD cases are
+a minority in such data, studies commonly rebalance the classes with
+hybrid sampling (HS), here SMOTEENN followed by Random Oversampling (ROS).
+This study evaluates HS with three deep learning (DL) models (CNN, NN, MLP)
+and three classical ML models (Decision Tree, SVM, XGBoost) on 229,781
+unique records of the 2015 BRFSS survey, under two evaluation protocols.
+When the whole dataset is resampled before it is split, as in many
+published pipelines, the models reach 94.7--99.8\% test accuracy (Decision
+Tree 99.8\%, XGBoost 98.2\%, MLP 98.5\%). We show that these scores are an
+artefact of data leakage: every positive test record has an identical copy
+in the training set, and the edited-nearest-neighbour step removes 19.9\%
+of the real non-CVD records, precisely the borderline cases, before the
+test set is drawn. When the test set (6,000 real records) is held out
+before any sampling, the same models reach only 57.4--70.8\% accuracy and
+an area under the ROC curve (AUC) of 0.57--0.81. We therefore propose a
+leakage-free pipeline that uses all 21 survey features, class weighting
+instead of synthetic resampling, regularised models and a decision
+threshold tuned on a validation set. It improves every model on unseen
+patients, to 74.9--76.0\% accuracy, 78.8--82.8\% recall and an AUC of
+0.825--0.840 (Decision Tree accuracy 57.4\% $\rightarrow$ 74.9\%, XGBoost
+recall 30.5\% $\rightarrow$ 82.8\%), with five-fold cross-validation
+confirming these values (AUC 0.82--0.84). Simple models such as logistic
+regression perform on par with deep networks. The results show that the
+evaluation protocol, not the choice of model, dominates reported
+performance on imbalanced clinical data, and they provide realistic
+expectations and a reproducible, open-source baseline for CVD screening
+from survey data.
+}}
+
+\medskip
+\noindent\textbf{Keywords:} Cardiovascular Disease, Disease Prediction, Machine
+Learning, Neural Networks, Hybrid Sampling, Class Imbalance, Data Leakage
+
+\section{INTRODUCTION}
+
+According to the World Health Organization (WHO), CVDs are a group of
+conditions that affect the heart and blood vessels, leading to various
+health issues and accounting for approximately 31\% of all global deaths
+annually~\cite{who}. It has been estimated that by 2030, deaths related to
+CVD will rise significantly, with approximately 23.3 million people dying
+from this condition~\cite{mathers}. These types of diseases include, but are
+not limited to, coronary artery disease, myocardial infarctions, angina,
+stroke, arrhythmias, atherosclerosis, and hypertension. Myocardial
+infarctions and angina are primarily caused when the arteries become
+narrowed or blocked, resulting in reduced blood supply to the heart, thereby
+escalating the risk of CVDs~\cite{mayo,libby}. It has also been found that
+high blood pressure, along with arterial stiffening, is a major cause of
+CVD. Additionally, factors such as alcohol use, stress, physical
+inactivity, obesity and its complications, and diabetes also contribute to
+the development of CVD~\cite{yusuf}. Given the silent yet deadly progression
+of heart disease, early and accurate diagnosis becomes increasingly
+challenging. Therefore, early detection and intervention in CVD are crucial,
+as timely and accurate treatment can help prevent life-threatening
+complications~\cite{virani}.
+
+Although age, gender, blood pressure, and smoking status have traditionally
+been employed as fixed factors for predicting CVD, they do not adequately
+reflect the disease's dynamic nature and complexity~\cite{alaref,gavhane}.
+In contrast, techniques in data mining and machine learning (ML) have
+demonstrated encouraging results in assessing the severity of heart disease
+and forecasting outcomes, with algorithms such as K-nearest neighbors (KNN),
+Decision Tree (DT), and Naive Bayes (NB) showing
+effectiveness~\cite{sheikabdullah}. Consequently, advanced analytical
+approaches are crucial not only for early detection but also for the
+effective management of the numerous factors linked to CVD. However, deep
+learning (DL) approaches often encounter challenges concerning data
+interpretation, transparency, and reliability in medical
+contexts~\cite{currie}. To overcome these limitations, hybrid models
+combining DL with other computational techniques have been developed,
+offering enhanced explainability, predictive accuracy, and clinical
+relevance.
+
+A second, less discussed challenge is class imbalance. In population health
+surveys only a small fraction of respondents report CVD (about 10\% in the
+data used here), so classifiers trained naively tend to predict the
+majority class. Resampling methods such as the Synthetic Minority
+Oversampling Technique (SMOTE), Edited Nearest Neighbours (ENN) and Random
+Oversampling (ROS), alone or combined into hybrid sampling (HS), are widely
+used to rebalance the classes~\cite{ishaq,singh2015,batista}. How and when
+resampling is applied, however, determines whether the reported performance
+reflects the model's ability to recognise new patients. If the full
+dataset is resampled before it is split into training and test sets,
+duplicated and synthetic records derived from the same patient can appear
+on both sides of the split, and cleaning steps can remove difficult cases
+from the test set. The resulting estimates can be far higher than the
+performance a clinic would observe.
+
+In order to improve CVD prediction models and methodologies, this research
+builds on recent studies. For example, recent studies investigated the
+effect of peripheral muscle action on cardio-exercise capacity in children
+with congenital heart defects~\cite{chlif}, as well as fetal health
+monitoring with hybrid DL algorithms~\cite{hussain}. Furthermore, another
+innovative application of Blockchain and ML integration in ensuring
+healthcare data security holds immense potential for e-Healthcare
+solutions~\cite{khan}. Our study combines DL techniques (MLP, CNN, NN) with
+ML algorithms (DT, SVM, XGBoost), feature selection and HS, and evaluates
+them under two protocols: the commonly used resample-before-split protocol
+and a leakage-free protocol in which the test data are held out before any
+sampling. A comprehensive list of abbreviations and their corresponding
+descriptions can be found in Table~\ref{tab:abbrev}. The key contributions of
+this study are as follows:
+
+\begin{itemize}
+  \item A pipeline for CVD prediction was implemented, incorporating data
+    preprocessing, correlation-based feature selection, hybrid sampling
+    (SMOTEENN followed by ROS) and systematic evaluation of six DL and ML
+    models.
+  \item We show, quantitatively, that resampling the dataset before
+    splitting it leaks information into the test set: all positive test
+    records have identical copies in the training set and the ENN step
+    removes 19.9\% of the real negative records, which inflates accuracy to
+    94.7--99.8\%.
+  \item Under a leakage-free protocol we report the realistic performance
+    of the same models on 6,000 real, unseen records (57.4--70.8\%
+    accuracy, AUC 0.57--0.81).
+  \item We propose an improved, leakage-free pipeline (all features, class
+    weighting, regularised models, validation-tuned decision threshold)
+    that raises every model to about 76\% accuracy, 80\% recall and an AUC of
+    0.84, confirmed by five-fold cross-validation, and an ablation study
+    that attributes the gain to each change.
+  \item The complete code is released as open source so that every number
+    and figure in this paper can be reproduced.
+\end{itemize}
+
+The primary goal of this research is to provide a reliable assessment of
+how well ML models can forecast CVD from survey data, and to give practical
+guidance on building and evaluating such models. The structure of this
+paper is as follows: Section~\ref{sec:lit} offers an overview of the related
+literature. Section~\ref{sec:method} explains the methodology, including both
+evaluation protocols and the improved pipeline.
+Section~\ref{sec:arch} describes the models and evaluation metrics.
+Section~\ref{sec:results} presents and discusses the results, and
+Section~\ref{sec:conclusion} concludes with a summary of the key findings and
+an analysis of their implications.
+
+\begin{table}[t]
+\centering
+\caption{List of Abbreviations}
+\label{tab:abbrev}
+\small
+\begin{tabular}{ll}
+\toprule
+Abbreviation & Description \\
+\midrule
+WHO & World Health Organization \\
+CVD & Cardiovascular Disease \\
+DL & Deep Learning \\
+CKD & Chronic Kidney Disease \\
+HRFLM & Hybrid Random Forest with a Linear Model \\
+ML & Machine Learning \\
+MLP & Multi-Layer Perceptron \\
+CNN & Convolutional Neural Network \\
+NN & Neural Network \\
+DT & Decision Tree \\
+SVM & Support Vector Machine \\
+KNN & K-Nearest Neighbor \\
+NB & Naive Bayes \\
+LR & Logistic Regression \\
+HDPM & Heart Disease Prediction Model \\
+SMOTE & Synthetic Minority Oversampling Technique \\
+ENN & Edited Nearest Neighbours \\
+SMOTEENN & SMOTE followed by ENN cleaning \\
+ROS & Random Oversampling \\
+HS & Hybrid Sampling (SMOTEENN followed by ROS) \\
+AUC-ROC & Area Under the Receiver Operating Characteristic Curve \\
+CDC & Centers for Disease Control and Prevention \\
+BRFSS & Behavioral Risk Factor Surveillance System \\
+ReLU & Rectified Linear Unit \\
+PPV & Positive Predictive Value \\
+HS-MLP, HS-CNN, HS-NN & HS combined with MLP, CNN, NN \\
+HS-DT, HS-SVM, HS-XGBoost & HS combined with DT, SVM, XGBoost \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{LITERATURE REVIEW}
+\label{sec:lit}
+
+The literature reviewed in this study highlights key findings related to CVD
+prediction. One study proposed a solution for determining heart disease risk
+in highly imbalanced datasets using machine learning tools~\cite{fernando}. The
+authors investigated several approaches, including cost-sensitive learning
+algorithms, ensemble methods, and oversampling techniques. The experimental
+results demonstrated that ensemble methods and cost-sensitive learning
+algorithms were particularly effective in predicting CVD risk.
+
+Building upon existing research, a method aimed at enhancing the survival
+prognosis of heart failure patients through the integration of SMOTE and
+advanced data mining techniques was proposed in~\cite{ishaq}. This approach
+tackles the issue of class imbalance in heart failure datasets by
+generating synthetic instances for the underrepresented class using SMOTE.
+A range of classification algorithms, including KNN, NB, DT, XGBoost, and
+Random Forests were evaluated for heart failure prognosis, achieving
+prediction accuracy ranging from 85\% to 94\%. The study underscores the
+application of this methodology to improve both sensitivity and prediction
+performance for survival outcomes.
+
+As highlighted in~\cite{singh2015}, data imbalance is a pervasive issue in
+classification tasks, and numerous strategies and algorithms have been
+proposed to mitigate its effects. The paper reviews the advantages and
+limitations of under-sampling, oversampling, and hybrid techniques. It
+presents a comprehensive overview of the existing approaches, stressing the
+importance of choosing the most suitable method based on the dataset's
+inherent characteristics. The authors conclude that addressing data
+imbalance in classification remains a critical area for further research
+and that the development of novel, more effective solutions is necessary.
+
+Batista et al.~\cite{batista} examined diverse methodologies for mitigating
+class imbalance in machine learning datasets. The analysis evaluated the
+efficacy of under-sampling, over-sampling, and hybrid strategies, including
+SMOTE combined with ENN, in enhancing model training. The outcomes
+underscored the critical role of balanced datasets in boosting classifier
+performance, particularly in terms of precision and generalization. This
+study serves as a pivotal reference for employing hybrid sampling methods in
+contemporary machine learning applications, such as CVD prediction.
+
+Extending the examination of feature selection and classification
+methodologies, Ali et al.~\cite{ali} developed an effective machine learning
+framework for the early detection of cardiovascular diseases. Their
+methodology integrated advanced feature selection algorithms, including
+Relief and LASSO, with an ensemble of classification models to isolate the
+most clinically influential risk indicators and enhance diagnostic
+accuracy. The study demonstrated significant improvements in predictive
+sensitivity and specificity across medical records, underscoring the
+critical importance of feature optimization and balanced dataset evaluation
+for reliable clinical decision support.
+
+A noteworthy study~\cite{li} investigates the implementation of ML techniques
+for detecting heart diseases within e-healthcare frameworks. The
+methodology combines conventional approaches with an ensemble of
+cutting-edge classifiers, such as logistic regression and KNN, to extract
+the most relevant features. When tested on a real-world dataset, the model
+delivered promising performance, achieving notable accuracy and precision
+metrics. This work highlights the potential of ML in advancing digital
+healthcare systems, particularly for the precise and timely diagnosis of
+cardiovascular conditions.
+
+In the field of clinical decision support systems, Fitriyani et al.
+introduced the Heart Disease Prediction Model (HDPM) as a robust forecasting
+tool. Various machine learning algorithms, including SVM and KNN, were
+applied to construct a dependable and precise predictive model. Notably,
+HDPM surpassed other existing models, demonstrating an accuracy rate between
+90\% and 94\% in diagnosing heart disease, with a sensitivity of
+95\%~\cite{fitriyani}.
+
+In furtherance of earlier research on ML for heart disease detection, a study
+was conducted to investigate ML algorithms that could facilitate the swift
+diagnosis of CVDs~\cite{ahmad}. This study assessed the performance of
+logistic regression, random forests, and SVM in detecting cardiac issues.
+Additionally, the influence of hyperparameter tuning through GridSearchCV on
+model performance was examined. The results indicated that improvements in
+algorithmic techniques and hyperparameter optimization contributed
+significantly to enhanced diagnostic accuracy in medical practice.
+
+Ramesh et al.~\cite{ramesh} focused on developing predictive models for heart
+diseases through the application of ML techniques. Logistic regression,
+decision trees (DT), and support vector machines (SVM) were employed for
+prediction. These models were assessed using real-world datasets, with
+performance evaluated based on precision, recall, and F1-scores. The results
+demonstrated that ML algorithms were effective in forecasting heart disease
+outcomes, with the authors emphasizing the significance of selecting an
+algorithm that aligns well with the specific characteristics of the data to
+ensure optimal performance.
+
+A methodology to enhance the performance of mechanical circulatory support
+devices was introduced by Qureshi et al.~\cite{qureshi}. This approach
+focuses on optimizing the transfer of kinetic energy from the forward-moving
+aortic blood flow. An exhaustive search technique was also employed to
+select the optimal cuff inflation and deflation timings. The feasibility and
+effectiveness of this method were explored through computer modeling and
+mathematical calculations. The findings suggest that optimizing kinetic
+energy transfer in mechanical circulatory support devices could
+significantly improve their functionality and increase cardiac output,
+presenting a new potential method to enhance the performance of the heart in
+patients with heart failure.
+
+Azmi et al.~\cite{azmi} carried out a comprehensive review of AI applications
+in CVD prediction using large medical datasets. The objective of their
+review was to identify key trends and areas by conducting an extensive
+literature analysis. Among their discoveries, they illustrated how ML could
+be employed to effectively utilize big data for precise and efficient CVD
+prediction and early-stage diagnosis. The review highlighted the
+application of various ML algorithms, data pre-processing techniques, and
+evaluation metrics commonly used in CVD prediction studies. However, the
+authors emphasized that issues related to data quality, model
+interpretability, and scalability must be addressed before ML-based
+technologies can be widely implemented in the field of CVD prediction.
+
+In a distinct study published in Diagnostics~\cite{singh2022}, a novel DNN
+model was introduced for the early identification and prediction of Chronic
+Kidney Disease (CKD). By incorporating Glomerular Filtration Rate (GFR) and
+kidney injury markers, this model surpassed traditional ML approaches,
+achieving perfect accuracy in classification tests. In a subsequent study, a
+hybrid parallel classification model for diagnosing CKD was developed,
+aiming to further enhance accuracy through innovative computational
+techniques~\cite{singhjain}. A two-phase hybrid approach that integrates
+feature selection and Adaptive SVM for chronic disease classification was
+proposed in~\cite{jain2019}, and a further hybrid approach for chronic disease
+classification was presented in~\cite{jain2020}. These studies explore the
+integration of multiple methodologies to improve the precision and
+efficiency of disease classification models.
+
+One study utilized a mixed-method approach incorporating ML to achieve high
+prediction accuracy for heart diseases~\cite{mohan}. By integrating a hybrid
+random forest with a linear model (HRFLM), the predictive accuracy of the
+heart disease model was significantly enhanced. The researchers reported an
+accuracy rate of 88.4\%, outperforming individual algorithms. In a separate
+effort to forecast CVD, Kavitha et al.~\cite{kavitha} introduced a hybrid
+prediction method integrating Random Forest and DT, which achieved an
+accuracy of 88.7\%.
+
+Several authors have warned that preprocessing steps applied before
+data partitioning, including oversampling, can leak information from the
+test set into model training and inflate reported
+performance~\cite{kaufman,kapoor}. Santos et al.~\cite{santos} showed in
+particular that oversampling before cross-validation produces
+over-optimistic estimates on imbalanced data, and recommended that
+resampling be applied only to the training folds. These findings motivate
+the two evaluation protocols compared in this study.
+
+The methodologies reviewed in this study represent substantial advancements
+in CVD prediction. Collectively, these studies indicate a promising
+trajectory for improving CVD prediction accuracy and early detection.
+However, the reported accuracies are obtained on different datasets and,
+often, under different evaluation protocols, which makes them difficult to
+compare. A balanced evaluation that separates genuine predictive power from
+evaluation artefacts is necessary to guide future efforts.
+
+\section{PROPOSED METHODOLOGY}
+\label{sec:method}
+
+This section outlines the methodology for CVD prediction. The data analysis
+is implemented in Python using pandas, scikit-learn, imbalanced-learn,
+XGBoost and TensorFlow/Keras. The overall pipeline is shown in
+Fig.~\ref{fig:method}; its key design choice is the point at which sampling
+is applied relative to the train/test split, which defines the two
+evaluation protocols compared throughout the paper.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=5mm and 6mm,
+  box/.style={draw, rounded corners=2pt, fill=boxblue, text=white,
+              font=\small\bfseries, align=center, minimum height=9mm,
+              minimum width=21mm},
+  data/.style={box, fill=boxred},
+  good/.style={box, fill=boxgreen},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  lbl/.style={font=\small\bfseries, anchor=west}]
+  % Protocol A
+  \node[lbl] (la) at (0,0) {(a) Protocol A: resample before split (as in prior work)};
+  \node[box, below=4mm of la.south west, anchor=north west] (a1) {Dataset};
+  \node[box, right=of a1] (a2) {Feature\\selection};
+  \node[box, right=of a2] (a3) {Hybrid sampling\\(SMOTEENN+ROS)\\of \emph{all} data};
+  \node[data, right=of a3] (a4) {Test set\\3,000/class};
+  \node[data, right=of a4] (a5) {Train 80\%\\Valid. 20\%};
+  \draw[arr] (a1) -- (a2); \draw[arr] (a2) -- (a3); \draw[arr] (a3) -- (a4);
+  \draw[arr] (a4) -- (a5);
+  % Protocol B
+  \node[lbl, below=17mm of la.west, anchor=west] (lb) {(b) Protocol B: split before any sampling (leakage-free)};
+  \node[box, below=4mm of lb.south west, anchor=north west] (b1) {Dataset};
+  \node[good, right=of b1] (b2) {Test set\\3,000/class\\(real records)};
+  \node[good, right=of b2] (b3) {Train 80\%\\Valid. 20\%\\(real records)};
+  \node[box, right=of b3] (b4) {Sampling or\\class weights on\\\emph{training} only};
+  \node[box, right=of b4] (b5) {Train models,\\tune threshold\\on validation};
+  \draw[arr] (b1) -- (b2); \draw[arr] (b2) -- (b3); \draw[arr] (b3) -- (b4);
+  \draw[arr] (b4) -- (b5);
+  \node[box, below=6mm of b5] (b6) {Evaluate on\\held-out test set};
+  \draw[arr] (b5) -- (b6);
+  \draw[arr, dashed] (b2.south) |- (b6.west);
+\end{tikzpicture}
+\caption{Proposed methodology. (a) In the resample-before-split protocol used
+by the original pipeline, synthetic, duplicated and cleaned records are
+created before the test set is drawn. (b) In the leakage-free protocol the
+test and validation sets contain only real records that are never resampled
+or seen during training.}
+\label{fig:method}
+\end{figure}
+
+\subsection{Data Collection}
+
+The dataset employed in this study was sourced from Kaggle~\cite{teboul}, a
+publicly accessible data repository. It is a refined version of the data
+originally compiled by the Behavioral Risk Factor Surveillance System
+(BRFSS)~\cite{brfss}. The dataset consists of 253,680 records, each
+representing responses from the 2015 BRFSS survey conducted by the Centers
+for Disease Control and Prevention (CDC). It includes 22 columns, one of
+which is the target variable, ``HeartDiseaseorAttack''. This binary target
+variable indicates the presence or absence of a heart attack, where ``0''
+signifies no history of coronary heart disease (CHD) or myocardial
+infarction (MI) and ``1'' indicates a reported history of CHD or MI. The raw
+data comprise 229,787 records without heart disease and 23,893 records with
+heart disease. A comprehensive description of the dataset, including the
+variables and their corresponding measurements, is provided in
+Table~\ref{tab:vars}~\cite{brfsscalc}.
+
+\begin{table}[t]
+\centering
+\caption{Description of Dataset Variables}
+\label{tab:vars}
+\small
+\begin{tabular}{p{0.3\linewidth}p{0.62\linewidth}}
+\toprule
+Variable & Description \\
+\midrule
+HeartDiseaseorAttack & 0 = No history of coronary heart disease (CHD) or myocardial infarction (MI); 1 = Reported CHD or MI \\
+HighBP & 0 = No high blood pressure; 1 = High blood pressure \\
+HighChol & 0 = No high cholesterol; 1 = High cholesterol \\
+CholCheck & 0 = No cholesterol check in past 5 years; 1 = Checked cholesterol in past 5 years \\
+BMI & Body Mass Index [12--98] \\
+Smoker & 0 = Smoked fewer than 100 cigarettes in lifetime; 1 = Smoked at least 100 cigarettes in lifetime \\
+Stroke & 0 = Has never experienced a stroke; 1 = Has experienced a stroke \\
+Diabetes & 0 = Absence of diabetes; 1 = Prediabetes / borderline; 2 = Presence of diabetes \\
+PhysActivity & 0 = No physical activity or exercise in prior month; 1 = Engaged in physical activity or exercise in prior month \\
+Fruits & 0 = Consumes fruit less than once per day; 1 = Consumes fruit one or more times per day \\
+Veggies & 0 = Consumes vegetables less than once per day; 1 = Consumes vegetables one or more times per day \\
+HvyAlcoholConsump & Adult men: $\geq$14 drinks/week; Adult women: $\geq$7 drinks/week (0 = No, 1 = Yes) \\
+AnyHealthcare & Health care coverage / health insurance (0 = No, 1 = Yes) \\
+NoDocbcCost & Could not see doctor due to cost in past 12 months (0 = No, 1 = Yes) \\
+GenHlth & General health rating: [1, 2, 3] = Excellent, Very Good, Good; [4, 5] = Fair, Poor \\
+MentHlth & Days of poor mental health in past 30 days [0--30] \\
+PhysHlth & Days of physical illness or injury in past 30 days [0--30] \\
+DiffWalk & Serious difficulty walking or climbing stairs (0 = No, 1 = Yes) \\
+Sex & 0 = Female, 1 = Male \\
+Age & 13-level category: 1 = 18--24, 2 = 25--29, 3 = 30--34, 4 = 35--39, 5 = 40--44, 6 = 45--49, 7 = 50--54, 8 = 55--59, 9 = 60--64, 10 = 65--69, 11 = 70--74, 12 = 75--79, 13 = 80 or older \\
+Education & [1, 2, 3] = Did not graduate high school; 4 = High school graduate; 5 = Attended college or technical school; 6 = College graduate \\
+Income & 1, 2 = Lower than \$15,000; 3, 4 = \$15,000 to less than \$25,000; 5 = \$25,000 to less than \$35,000; 6 = \$35,000 to less than \$50,000; 7, 8 = \$50,000 or more \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data Preprocessing}
+
+This study employs an exploratory data analysis (EDA) approach. Upon loading
+the dataset using the Pandas library, duplicate entries are removed to
+maintain data integrity, leaving 229,781 unique records with 22 columns.
+The presence of missing data is assessed, and the analysis confirms that no
+missing values exist. The target variable is strongly imbalanced: the
+dataset comprises 23,717 cases of heart disease (10.3\%) and 206,064
+instances of individuals without heart disease.
+
+Fig.~\ref{fig:dist}(a) depicts the distribution of the target variable and,
+among the heart disease cases, the proportions of individuals who have had a
+stroke or who smoke. The age distribution of individuals with and without
+heart disease is compared in Fig.~\ref{fig:age}(a); the prevalence of heart
+disease increases steeply with age.
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{\linewidth}
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig2_distribution_before_sampling.png}
+  \caption{Before sampling}
+\end{subfigure}
+\begin{subfigure}{\linewidth}
+  \centering
+  \includegraphics[width=0.9\linewidth]{figures/fig4_distribution_after_sampling.png}
+  \caption{After hybrid sampling of the whole dataset (Protocol A)}
+\end{subfigure}
+\caption{Distribution of the target variable, and of stroke and smoker cases
+among individuals with heart disease, before and after hybrid sampling.}
+\label{fig:dist}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig3_age_before_sampling.png}
+  \caption{Before sampling}
+\end{subfigure}
+\begin{subfigure}{0.49\linewidth}
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig5_age_after_sampling.png}
+  \caption{After hybrid sampling (Protocol A)}
+\end{subfigure}
+\caption{Age distribution of individuals with and without heart disease
+before and after hybrid sampling.}
+\label{fig:age}
+\end{figure}
+
+\subsection{Feature Selection}
+
+Feature selection helps reduce the dataset's complexity while focusing on
+the variables most closely linked to the target outcome. A Pearson
+correlation matrix is computed and the features are ranked by their
+correlation with ``HeartDiseaseorAttack''. The strongest associations are
+found for GenHlth ($r = 0.246$), Age (0.224), DiffWalk (0.203), HighBP
+(0.201), Stroke (0.199), HighChol (0.176), Diabetes (0.171), PhysHlth
+(0.171) and Smoker (0.105). Following the original pipeline, these nine
+features are used by the HS models. Because Pearson correlation only
+captures linear, univariate association, the improved pipeline
+(Section~\ref{sec:improved}) instead uses all 21 features and lets the
+models weigh them; the effect of this choice is quantified in the ablation
+study.
+
+\subsection{Hybrid Sampling}
+
+Hybrid sampling combines SMOTEENN with ROS. SMOTE first synthesises new
+minority-class instances by interpolating between a minority record and its
+nearest minority neighbours until the classes are balanced. ENN then removes
+every record whose class disagrees with the majority of its three nearest
+neighbours, from both classes. Finally, ROS duplicates minority records
+until both classes have equal size. The HS methodology is implemented with
+the imbalanced-learn library (random state 42).
+
+\subsection{Evaluation Protocols}
+\label{sec:protocols}
+
+\paragraph{Protocol A (resample before split).} This is the protocol of the
+original pipeline. HS is applied to the whole dataset, which yields 330,288
+records (165,144 per class). From this resampled dataset 3,000 records per
+class are drawn at random as the test set; the remaining records are split
+80/20 into training (259,430) and validation (64,858) sets. Five-fold
+cross-validation is likewise run on the resampled data.
+
+\paragraph{Protocol B (split before sampling, leakage-free).} Before any
+sampling, 3,000 \emph{real} records per class are drawn from the deduplicated
+dataset as the test set. The remaining records are split, stratified by
+class, into training (179,024 records, 80\%) and validation (44,757 records,
+20\%) sets. Sampling, when used, is applied to the training set only; the
+validation and test sets contain only real records with their natural
+characteristics. The test set is balanced, so its accuracy equals the
+balanced accuracy, which allows a direct comparison with Protocol A. For
+cross-validation the 223,781 non-test records are split into five
+stratified folds; the held-out fold keeps the real prevalence of about
+10.3\%, and any sampling, early stopping and threshold tuning use only the
+training folds.
+
+\subsection{Improved Pipeline}
+\label{sec:improved}
+
+Based on the analysis in Section~\ref{sec:results}, we propose an improved
+pipeline that is evaluated under Protocol B. It makes four changes:
+\begin{enumerate}
+  \item \textbf{All 21 features} are used instead of the nine
+    correlation-selected ones.
+  \item \textbf{Class weighting replaces resampling.} The models are
+    trained on the real, imbalanced training data; errors on the minority
+    class are weighted by the inverse class frequency
+    (\texttt{class\_weight="balanced"} for DT, SVM, LR and the DL models;
+    \texttt{scale\_pos\_weight} $=$ 9.8, the ratio of negative to positive training records, for XGBoost).
+  \item \textbf{Regularised models.} The DT is limited to a depth of 8 with
+    at least 50 records per leaf; XGBoost uses shallow trees (depth 5),
+    learning rate 0.03, row and column subsampling of 0.8 and early
+    stopping on the validation AUC (patience 100 rounds, at most 2,000
+    trees); the DL models use early stopping on the validation loss
+    (patience 3, at most 30 epochs, batch size 256) and restore the best
+    weights. Logistic regression (LR) is added as an interpretable baseline.
+  \item \textbf{Decision threshold tuned on the validation set.} Instead of
+    the default threshold of 0.5, the threshold that maximises Youden's
+    index $J = \text{sensitivity} + \text{specificity} - 1$ on the
+    validation set is used.
+\end{enumerate}
+
+\section{DL AND ML ARCHITECTURE ANALYSIS}
+\label{sec:arch}
+
+\subsection{ML Models}
+
+\paragraph{Decision Tree.} A DT classifier (C4.5-style, entropy splitting
+criterion) learns a hierarchy of feature tests that map input features to
+the CVD label. In the HS pipeline the tree is grown to full depth.
+
+\paragraph{SVM.} An SVM classifier with a linear kernel separates the two
+classes with a maximum-margin hyperplane. Features are min--max scaled, and
+the model is fitted with the LIBLINEAR solver, which solves the same linear
+SVM problem as a kernel SVM with a linear kernel but scales to several
+hundred thousand records. Its decision values are used to compute the ROC
+curve.
+
+\paragraph{XGBoost.} XGBoost builds an ensemble of gradient-boosted trees,
+each correcting the errors of the previous ones. The HS pipeline uses the
+library defaults.
+
+\subsection{DL Models}
+
+All DL models share a preprocessing stage: features are min--max scaled and
+passed through an autoencoder whose encoder (one dense layer of 64 ReLU
+units, trained for 10 epochs to reconstruct its input with a sigmoid output
+layer and mean-squared-error loss) produces a 64-dimensional representation
+that is fed to the classifier. The classifiers are:
+\begin{itemize}
+  \item \textbf{CNN}: Conv1D (8 filters, kernel size 2, ReLU) $\rightarrow$
+    max pooling (2) $\rightarrow$ flatten $\rightarrow$ dense (16, ReLU)
+    $\rightarrow$ dense (1, sigmoid); 20 epochs.
+  \item \textbf{NN}: dense (64, ReLU) $\rightarrow$ dense (32, ReLU)
+    $\rightarrow$ dense (1, sigmoid); 10 epochs.
+  \item \textbf{MLP}: dense (128) $\rightarrow$ dense (64) $\rightarrow$
+    dense (32), all ReLU $\rightarrow$ dense (1, sigmoid); 20 epochs.
+\end{itemize}
+All DL models are trained with the Adam optimiser and binary cross-entropy
+loss, with a batch size of 32 in the HS pipeline.
+
+\subsection{Evaluation Metrics}
+
+For performance evaluation, a confusion matrix is employed to analyze the
+results of each model. The matrix produces four key metrics: true positives
+(TP), true negatives (TN), false positives (FP), and false negatives (FN).
+These metrics facilitate the computation of additional performance
+indicators.
+
+\begin{enumerate}
+\item Accuracy: the proportion of correct predictions~\cite{ullah2022}:
+\begin{equation}
+\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}
+\end{equation}
+\item Precision (positive predictive value): the proportion of predicted CVD
+cases that are correct~\cite{ullah2023}:
+\begin{equation}
+\text{Precision} = \frac{TP}{TP + FP}
+\end{equation}
+\item Recall (sensitivity): the proportion of actual CVD cases that are
+detected~\cite{ullah2023}:
+\begin{equation}
+\text{Recall} = \frac{TP}{TP + FN}
+\end{equation}
+\item F1-score: the harmonic mean of precision and recall~\cite{ullah2022}:
+\begin{equation}
+\text{F1-score} = \frac{2 \cdot (\text{Precision} \cdot \text{Recall})}{\text{Precision} + \text{Recall}}
+\end{equation}
+\item Area Under the Curve (AUC): the area under the receiver operating
+characteristic (ROC) curve, which traces the true positive rate (TPR) against
+the false positive rate (FPR) across classification
+thresholds~\cite{ullah2022}. The AUC ranges from 0.5 (random guessing) to 1.0
+(perfect classification) and is computed from the continuous model scores:
+\begin{equation}
+\text{AUC} = \int_0^1 \text{TPR}(\text{FPR})\, d(\text{FPR})
+\end{equation}
+\end{enumerate}
+
+Unlike accuracy, precision and F1, the AUC does not depend on the decision
+threshold or on the class balance of the test set, which makes it the most
+robust metric for comparing models across protocols.
+
+\section{RESULTS AND DISCUSSION}
+\label{sec:results}
+
+\input{results}
+
+\section{CONCLUSION AND FUTURE WORK}
+\label{sec:conclusion}
+
+\input{conclusion}
+
+\section*{CODE AND DATA AVAILABILITY}
+
+The dataset used in this study is publicly available on
+Kaggle~\cite{teboul} and in the GitHub repository at
+\url{https://github.com/daniyalabdulah/Early-Detection-of-Heart-Disease-using-Deep-Learning}.
+The complete source code, which reproduces every table and figure in this
+paper, is available at
+\url{https://github.com/mohsinkhan85/Biomedical-Neurocomputing-Lab}.
+
+\section*{ACKNOWLEDGMENTS}
+
+This work was supported by King Saud University, Riyadh, Saudi Arabia,
+through Researchers Supporting Project number RSP2024R184.
+
+\input{references}
+
+\end{document}
