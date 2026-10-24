@@ -6,3 +6,4 @@ xgboost
 tensorflow
 matplotlib
 seaborn
+statsmodels

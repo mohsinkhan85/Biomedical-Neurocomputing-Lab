@@ -18,7 +18,8 @@ Cleveland heart disease data (`data/cleveland/`).
 | 3.6 Improved pipeline | All 21 features, class weights, regularised models, threshold tuned on validation | `hscvd/models.py`, `hscvd/evaluation.py` |
 | 3.7 External evaluation | Improved pipeline on Cleveland, 5 × 5-fold cross-validation | `run_cleveland.py` |
 | 4 Models and metrics | DT, SVM, XGBoost, LR; autoencoder + CNN / NN / MLP; accuracy, precision, recall, F1, AUC | `hscvd/models.py`, `hscvd/evaluation.py` |
-| 5 Results | Tables 3–6, Figs. 4–7 | `run_improved.py`, `run_ablation.py`, `run_cleveland.py`, `make_paper_assets.py` |
+| 4.4 Statistical analysis | Bootstrap CIs, odds ratios, calibration and prior correction | `run_robustness.py` |
+| 5 Results | Tables 3–9, Figs. 4–8 | `run_improved.py`, `run_ablation.py`, `run_robustness.py`, `run_cleveland.py`, `make_paper_assets.py` |
 
 ## Setup
 
@@ -38,12 +39,15 @@ python run_improved.py
 # Table 4: ablation study
 python run_ablation.py
 
-# Table 3 (right), Table 5, Figs. 4-7: improved pipeline with 5-fold CV
+# Table 3 (right), Table 6, Figs. 4-7: improved pipeline with 5-fold CV
 # (DL results depend on the training order, so the improved column of the
 # paper is taken from this run, not from run_improved.py above)
 python run_improved.py --no-baseline --cv --out results/improved_cv
 
-# Table 6, Cleveland rows
+# Tables 5, 7, 8 and Fig. 8: bootstrap CIs, odds ratios, calibration
+python run_robustness.py
+
+# Table 9, Cleveland rows
 python run_cleveland.py
 
 # Build the manuscript's figures and tables, then the PDF
@@ -91,10 +95,16 @@ ablation study (Table 4):
 
 | Change | Why |
 |---|---|
-| All 21 features instead of the 9 correlation-selected ones | Pearson correlation misses useful signal (sex, income, BMI, education); XGBoost AUC 0.823 → 0.835 |
+| All 21 features instead of the 9 correlation-selected ones | Pearson correlation misses useful signal (e.g. sex, OR 2.13); XGBoost AUC 0.823 → 0.835 |
 | Class weights instead of resampling | SMOTEENN and ENN cleaning distort the data; XGBoost AUC 0.743 with HS vs. 0.823 without |
 | Decision threshold tuned on the validation set (Youden's J) | With imbalanced data the right cut-off is not 0.5 |
 | Regularised models (depth-limited DT, shallow early-stopped XGBoost, early-stopped DL models) | A fully grown tree memorises records (57.4% on real patients) |
+
+All gains are significant (95% bootstrap CIs). The raw probabilities of the
+class-weighted models overestimate risk three- to fourfold; a prior
+correction for the class weights restores calibration (Brier score
+0.070–0.072 vs. 0.084 for the prevalence alone) without changing AUC or
+classifications.
 
 Applied unchanged to the Cleveland data, the improved pipeline reaches
 80.1–81.3% accuracy and an AUC of 0.893–0.900 (5 × 5-fold cross-validation).

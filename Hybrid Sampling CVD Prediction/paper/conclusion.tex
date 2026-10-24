@@ -16,9 +16,19 @@ cross-validation confirms. The technical observations of this study are:
 \begin{itemize}
   \item On real data, hybrid sampling did not improve discrimination: it
     lowered the AUC of XGBoost from 0.823 to 0.743. Class weighting and a
-    tuned decision threshold address imbalance without distorting the data.
+    tuned decision threshold address imbalance without altering the
+    training data.
   \item Correlation-based selection of nine features discarded useful
     information; using all 21 features raised the AUC.
+  \item Class weighting distorts predicted probabilities: the raw outputs
+    overestimate the average risk three- to fourfold. A simple prior correction
+    restores calibration (Brier score 0.070--0.072) without changing the
+    AUC or the classifications, and should be applied whenever the models
+    are used to estimate individual risk.
+  \item A history of stroke, male sex, high cholesterol, high blood
+    pressure and poorer general health are the strongest risk factors; as
+    the data are cross-sectional, these are associations rather than causal
+    effects.
   \item Model choice matters far less than data handling. Logistic
     regression, SVM, XGBoost and the three DL models all reach an AUC of
     0.83--0.84, so simple and interpretable models are a sound choice for
@@ -39,8 +49,7 @@ cross-validation confirms. The technical observations of this study are:
 \end{itemize}
 
 Future work should validate the pipeline on external cohorts and later
-BRFSS survey years, study the calibration of the predicted probabilities,
-and add clinical measurements (for example blood pressure readings, lipid
+BRFSS survey years, assess calibration in external populations, and add clinical measurements (for example blood pressure readings, lipid
 profiles and ECG data), which are likely needed to move beyond the
 performance ceiling of self-reported data. Explainability methods such as
 SHAP values could make the models' risk factors transparent to clinicians,

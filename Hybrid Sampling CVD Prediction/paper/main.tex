@@ -78,7 +78,11 @@ threshold tuned on a validation set. It improves every model on unseen
 patients, to 74.9--76.0\% accuracy, 78.8--82.8\% recall and an AUC of
 0.825--0.840 (Decision Tree accuracy 57.4\% $\rightarrow$ 74.9\%, XGBoost
 recall 30.5\% $\rightarrow$ 82.8\%), with five-fold cross-validation
-confirming these values (AUC 0.82--0.84). Simple models such as logistic
+confirming these values (AUC 0.82--0.84) and bootstrap confidence intervals
+showing every gain to be significant. After a simple correction for class
+weighting, the predicted risks are well calibrated (Brier score 0.070--0.072
+vs.\ 0.084 for the prevalence alone), and the strongest risk factors are a
+history of stroke, male sex, high cholesterol and high blood pressure. Simple models such as logistic
 regression perform on par with deep networks. On the same BRFSS data the
 improved pipeline exceeds the AUC of a published LightGBM model (0.840 vs.
 0.811), and applied
@@ -179,6 +183,10 @@ this study are as follows:
     that raises every model to about 76\% accuracy, 80\% recall and an AUC of
     0.84, confirmed by five-fold cross-validation, and an ablation study
     that attributes the gain to each change.
+  \item We quantify the uncertainty of all results with bootstrap
+    confidence intervals, report adjusted odds ratios for the 21 survey
+    variables, and show that class-weighted models need a simple prior
+    correction to provide calibrated risk estimates.
   \item We compare the improved pipeline with published studies on equal
     terms: on the same BRFSS data it exceeds the AUC of a published model
     (0.840 vs.\ 0.811), and
@@ -560,6 +568,9 @@ pipeline:
     index $J = \text{sensitivity} + \text{specificity} - 1$ on the
     validation set is used.
 \end{enumerate}
+When the models are used to estimate the risk of an individual rather than
+to classify, their predicted probabilities are additionally corrected for
+the class weights (Section~\ref{sec:stats}).
 
 \subsection{External Evaluation on Clinical Data}
 \label{sec:cleveland}
@@ -664,6 +675,39 @@ thresholds~\cite{ullah2022}. The AUC ranges from 0.5 (random guessing) to 1.0
 Unlike accuracy, precision and F1, the AUC does not depend on the decision
 threshold or on the class balance of the test set, which makes it the most
 robust metric for comparing models across studies.
+
+\subsection{Statistical Analysis}
+\label{sec:stats}
+
+\paragraph{Confidence intervals.} Uncertainty in the test-set results is
+quantified with a stratified bootstrap: the 3,000 positive and 3,000
+negative test records are resampled with replacement 2,000 times, and 95\%
+confidence intervals (CIs) are taken as the 2.5th and 97.5th percentiles.
+Differences between models are evaluated on the same resamples (paired
+bootstrap); a difference is considered significant when its 95\% CI
+excludes zero.
+
+\paragraph{Risk factors.} To describe how each survey variable relates to
+CVD, an unweighted multivariable logistic regression with all 21 features
+is fitted to the real training records. We report odds ratios (ORs) per
+unit of each variable with 95\% Wald CIs.
+
+\paragraph{Calibration.} Calibration is assessed on the predictions made
+for the held-out folds of the five-fold cross-validation, in which every
+non-test
+record is predicted once, at the natural prevalence, by a model that did not
+see it. We report the mean predicted risk, the Brier score (the mean squared
+difference between predicted probability and outcome) and calibration curves
+over ten quantile bins. Class weighting trains a model as if both classes
+were equally frequent, so its probabilities correspond to a prevalence of
+50\%. They are therefore corrected for the training prevalence $\pi$ with
+\begin{equation}
+\frac{\hat{p}}{1-\hat{p}} = \frac{p}{1-p} \cdot \frac{\pi}{1-\pi},
+\end{equation}
+where $p$ is the model output and $\hat{p}$ the corrected probability. The
+correction is monotonic, so it changes neither the AUC nor, with a
+correspondingly transformed threshold, any classification. The SVM is
+excluded because its outputs are not probabilities.
 
 \section{RESULTS AND DISCUSSION}
 \label{sec:results}

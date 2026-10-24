@@ -198,10 +198,10 @@ def calibration_analysis(out):
     table = pd.DataFrame(rows)
     table.to_csv(os.path.join(out, "calibration.csv"), index=False)
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), sharey=True)
-    for ax, which, title in ((axes[0], 0, "Before correction"),
-                             (axes[1], 1, "After prior correction")):
-        ax.plot([0, 1], [0, 1], linestyle="--", color=INK_MUTED, linewidth=1,
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6))
+    for ax, which, title, limit in ((axes[0], 0, "Before correction", 1.0),
+                                    (axes[1], 1, "After prior correction", 0.45)):
+        ax.plot([0, limit], [0, limit], linestyle="--", color=INK_MUTED, linewidth=1,
                 label="Perfect calibration")
         for color, model in zip(COLORS, CALIBRATION_FIGURE_MODELS):
             frac_pos, mean_pred = curves[model][which]
@@ -209,14 +209,14 @@ def calibration_analysis(out):
                     color=color, label=model.replace("LogReg", "LR"))
         ax.set_title(title, fontsize=12, color=INK)
         ax.set_xlabel("Mean predicted probability", color=INK_MUTED)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
+        ax.set_xlim(0, limit)
+        ax.set_ylim(0, limit)
+        ax.set_ylabel("Observed fraction with CVD", color=INK_MUTED)
         ax.grid(True, color=GRID, linewidth=0.8)
         ax.set_axisbelow(True)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
         ax.tick_params(colors=INK_MUTED)
-    axes[0].set_ylabel("Observed fraction with CVD", color=INK_MUTED)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False,
                fontsize=10, bbox_to_anchor=(0.5, 1.05))

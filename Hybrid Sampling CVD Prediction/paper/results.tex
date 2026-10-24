@@ -1,9 +1,11 @@
-The results are presented in six parts. Section~\ref{sec:resB} evaluates
+The results are presented in eight parts. Section~\ref{sec:resB} evaluates
 the baseline HS pipeline on real, held-out records, and
 Section~\ref{sec:ablation} identifies the design choices that limit its
-performance. Section~\ref{sec:improvedres} presents the improved pipeline,
-and Section~\ref{sec:cv} confirms its results with five-fold
-cross-validation. Section~\ref{sec:compare} compares the findings with
+performance. Section~\ref{sec:improvedres} presents the improved pipeline
+with bootstrap confidence intervals, and Section~\ref{sec:cv} confirms its
+results with five-fold cross-validation. Section~\ref{sec:riskfactors}
+describes the risk factors and Section~\ref{sec:calibration} the
+calibration of the predicted risks. Section~\ref{sec:compare} compares the findings with
 existing studies, including the external evaluation on clinical data, and
 Section~\ref{sec:limits} discusses the limitations. All experiments use a
 fixed random state of 42 and can be reproduced with the released code.
@@ -78,7 +80,8 @@ DT & 21 features, class weights, depth 8 (improved) & 82.50 & 74.93 & 74.90 \\
 
 Four findings emerge. First, hybrid sampling is the main cause of the loss:
 replacing it with ROS alone raises the AUC of XGBoost from 0.743 to 0.821,
-and dropping resampling altogether gives the same AUC (0.823), showing that
+and dropping resampling altogether gives the same AUC (0.823; difference
+from HS $+$7.9 percentage points, 95\% CI 6.9--8.9), showing that
 synthetic records and ENN cleaning distort the data rather than add
 information. Second, without resampling the default threshold of 0.5 is
 unsuitable for imbalanced data (53.3\% accuracy, because almost every
@@ -89,7 +92,7 @@ address it as well: with them, the default threshold is already close to the
 tuned one (76.18\% vs.\ 76.00\% accuracy for XGBoost), so in the improved
 pipeline threshold tuning mainly guards against a miscalibrated model. Third, using all
 21 features instead of the nine correlation-selected ones increases the AUC
-from 0.823 to 0.835: features such as sex and income carry predictive
+from 0.823 to 0.835 ($+$1.3 percentage points, 95\% CI 0.8--1.8): features such as sex and income carry predictive
 information that a univariate correlation ranking misses
 (Section~\ref{sec:riskfactors}).
 Fourth, regularisation (shallow, early-stopped boosting and a depth-limited
@@ -106,9 +109,34 @@ summarises its results. Accuracy
 increases to 74.9--76.0\%, recall to 78.8--82.8\% and the AUC to
 0.825--0.840. The largest gains concern recall: the improved XGBoost
 detects 82.8\% of CVD cases, compared with 30.5\% for the baseline HS
-XGBoost, and the improved DT detects 78.9\% compared with 18.5\%. The ROC
-curves of all improved models nearly coincide (Fig.~\ref{fig:rocB}), and
-logistic regression performs on par with XGBoost and the three DL models.
+XGBoost, and the improved DT detects 78.9\% compared with 18.5\%.
+Table~\ref{tab:ci} gives 95\% bootstrap CIs: every gain in AUC and recall
+is statistically significant, with CIs of the differences far from zero
+(for example, $+$9.7 AUC points, 95\% CI 8.6--10.7, for XGBoost). The ROC
+curves of all improved models nearly coincide (Fig.~\ref{fig:rocB}). The
+improved XGBoost does not differ significantly from the NN and the MLP;
+its advantage over LR and the SVM (0.3 AUC points) is statistically
+significant but of no practical relevance, so logistic regression performs
+on par with XGBoost and the three DL models.
+
+\begin{table}[t]
+\centering
+\caption{AUC and recall (\%) on the real test set with 95\% bootstrap
+confidence intervals (2,000 stratified resamples), and the paired
+difference in AUC between the improved and the baseline HS model.}
+\label{tab:ci}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l|cc|cc|c}
+\toprule
+ & \multicolumn{2}{c|}{Baseline HS pipeline} & \multicolumn{2}{c|}{Improved pipeline} & \\
+Model & AUC & Recall & AUC & Recall & $\Delta$AUC \\
+\midrule
+\inputrows{tables/bootstrap_ci.tex}
+\bottomrule
+\end{tabular}}
+\end{table}
 The confusion matrices (Fig.~\ref{fig:cmB}) show a balanced error profile:
 the improved XGBoost correctly identifies 2,483 of 3,000 CVD cases and
 2,077 of 3,000 non-CVD cases. The learning curves of the DL models
@@ -203,6 +231,94 @@ should guide how such models are used: as inexpensive pre-screening tools
 that refer at-risk individuals for clinical assessment, not as diagnostic
 tests.
 
+\subsection{Risk Factors}
+\label{sec:riskfactors}
+
+Table~\ref{tab:or} lists the adjusted odds ratios of all 21 survey
+variables. The strongest associations with CVD are a history of stroke
+(OR 2.61, 95\% CI 2.47--2.76), male sex (2.13), high cholesterol (1.84),
+a cholesterol check in the past five years (1.81), high blood pressure
+(1.67), poorer general health (1.60 per level), smoking (1.41), difficulty
+walking (1.34) and age (1.28 per five-year category). These factors agree
+with those identified on the same data by Deng et al.~\cite{deng} (age,
+smoking, diabetes, hypertension and high cholesterol). Two of them, sex and
+the cholesterol check, are not among the nine features selected by
+correlation, which explains why using all features improves discrimination.
+Conversely, BMI, days of poor physical health and health care coverage are
+not significantly associated with CVD once the other variables are taken
+into account.
+
+Some associations run against intuition: heavy alcohol consumption
+(OR 0.72) and higher income (0.97 per level) are associated with lower odds,
+and physical activity and daily vegetable consumption with slightly higher
+odds. Because BRFSS is cross-sectional and records past diagnoses, these
+are associations, not causal effects; they plausibly reflect reverse
+causation, as people often change their behaviour after a diagnosis of
+heart disease. The model is suited to identifying who is likely to have
+CVD, not to estimating the effect of modifying a risk factor.
+
+\begin{table}[t]
+\centering
+\caption{Adjusted odds ratios (OR) of CVD from a multivariable logistic
+regression with all 21 features, fitted to the 179,024 real training
+records.}
+\label{tab:or}
+\small
+\begin{tabular}{lccc}
+\toprule
+Variable & OR & 95\% CI & $p$ \\
+\midrule
+\inputrows{tables/odds_ratios.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Calibration}
+\label{sec:calibration}
+
+Class weighting improves recall, but it distorts the predicted
+probabilities. On the out-of-fold predictions, where 9.3\% of the records
+have CVD, the improved models predict an average risk of 32--36\%
+(Table~\ref{tab:calibration}), and their Brier scores (0.150--0.177) are
+worse than that of a constant prediction equal to the prevalence (0.084).
+The raw outputs therefore must not be read as individual risks. After the
+prior correction of Section~\ref{sec:stats}, which uses no additional data,
+the mean predicted risk is 7.6--9.5\% and the Brier score falls to
+0.070--0.072, better than the constant prediction. The corrected
+calibration curves (Fig.~\ref{fig:calibration}) lie close to the diagonal
+for XGBoost; the MLP slightly underestimates and LR slightly overestimates
+the risk in the highest-risk group. With this correction, which leaves the
+AUC and the classifications unchanged, the models provide both a
+classification and a usable risk estimate.
+
+\begin{table}[t]
+\centering
+\caption{Calibration of the improved models on the out-of-fold
+cross-validation predictions (223,781 records, observed prevalence 9.3\%),
+before (raw) and after the prior correction for class weighting. A constant
+prediction equal to the prevalence has a Brier score of 0.084.}
+\label{tab:calibration}
+\small
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{Mean predicted risk (\%)} & \multicolumn{2}{c}{Brier score} \\
+Model & Raw & Corrected & Raw & Corrected \\
+\midrule
+\inputrows{tables/calibration.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/calibration.png}
+\caption{Calibration curves of the improved XGBoost, LR and MLP on the
+out-of-fold cross-validation predictions, before and after the prior
+correction for class weighting (ten quantile bins; note the different axis
+ranges).}
+\label{fig:calibration}
+\end{figure}
+
 \subsection{Comparison with Existing Studies}
 \label{sec:compare}
 
@@ -220,7 +336,9 @@ mainly reflects the class imbalance; our accuracy, in contrast, is measured
 on a balanced test set, where the same trivial classifier scores 50\%. On
 the AUC, which is comparable across both settings, all three proposed models
 in the table exceed Deng et al.: XGBoost reaches 0.840 with a recall of
-82.8\%, and logistic regression and the MLP reach 0.837 and 0.838.
+82.8\%, and logistic regression and the MLP reach 0.837 and 0.838. Deng et
+al.'s AUC of 0.811 lies below the lower 95\% confidence bound of all three
+models (0.827--0.830; Table~\ref{tab:ci}).
 
 \paragraph{Cleveland dataset.} Four studies in Table~\ref{tab:literature}
 use the clinical Cleveland data. Applied unchanged to this dataset, as
@@ -303,8 +421,9 @@ models identify individuals who resemble patients with a history of CVD
 rather than predict future events. Self-reported survey answers also carry
 less information than clinical measurements, which limits the attainable
 discrimination. The models were developed and tested on a single survey
-year without external validation, and the calibration of the predicted
-probabilities was not assessed. The balanced test set makes accuracy
+year without external validation; calibration was therefore assessed only
+internally, and the prior correction assumes that the prevalence in the
+target population matches that of the training data. The balanced test set makes accuracy
 comparable across models, but precision and F1 depend on prevalence, and
 the cross-validation results indicate the values to expect in a general
 population. The Cleveland evaluation used the hyper-parameters chosen for

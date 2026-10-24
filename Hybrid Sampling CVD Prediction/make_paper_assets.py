@@ -5,6 +5,7 @@ Needs the outputs of:
     python sampling_analysis.py                        -> results/sampling/
     python run_improved.py                             -> results/improved/
     python run_improved.py --no-baseline --cv --out results/improved_cv
+    python run_robustness.py                           -> results/robustness/
 """
 
 import os
@@ -171,12 +172,77 @@ def write_literature_rows(path, frame, dataset, models=("XGBoost", "LogReg", "ML
         f.write("\n".join(lines) + "\n")
 
 
+ROBUST = os.path.join(RESULTS, "robustness")
+OR_LABELS = {
+    "Stroke": "Stroke (yes)", "Sex": "Male sex", "HighChol": "High cholesterol (yes)",
+    "CholCheck": "Cholesterol check in past 5 years (yes)",
+    "HighBP": "High blood pressure (yes)", "GenHlth": "Poorer general health (per level)",
+    "Smoker": "Smoker (yes)", "DiffWalk": "Difficulty walking (yes)",
+    "Age": "Age (per 5-year category)", "NoDocbcCost": "No doctor visit due to cost (yes)",
+    "Diabetes": "Diabetes (per level)", "Veggies": "Daily vegetables (yes)",
+    "PhysActivity": "Physical activity (yes)", "Fruits": "Daily fruit (yes)",
+    "Education": "Education (per level)", "MentHlth": "Poor mental health (per day)",
+    "BMI": "BMI (per unit)", "PhysHlth": "Poor physical health (per day)",
+    "Income": "Income (per level)", "AnyHealthcare": "Health care coverage (yes)",
+    "HvyAlcoholConsump": "Heavy alcohol consumption (yes)",
+}
+
+
+def write_ci_table(path):
+    """AUC and recall with 95% bootstrap CIs, baseline vs. improved."""
+    ci = pd.read_csv(os.path.join(ROBUST, "bootstrap_ci.csv"))
+    diffs = pd.read_csv(os.path.join(ROBUST, "bootstrap_differences.csv"))
+    fmt = lambda r, m: (f"{r[m]:.1f} [{r[m + ' CI low']:.1f}, "  # noqa: E731
+                        f"{r[m + ' CI high']:.1f}]")
+    lines = []
+    for model in ["DT", "SVM", "XGBoost", "LogReg", "CNN", "NN", "MLP"]:
+        cells = [model.replace("LogReg", "LR")]
+        for setup in ("Baseline HS", "Improved"):
+            row = ci[(ci["Setup"] == setup) & (ci["Model"] == model)]
+            cells += ([fmt(row.iloc[0], "AUC"), fmt(row.iloc[0], "Recall")]
+                      if len(row) else ["--", "--"])
+        d = diffs[(diffs["Comparison"] == f"Improved - baseline {model}")
+                  & (diffs["Metric"] == "AUC")]
+        cells.append(f"+{d.iloc[0]['Difference']:.1f} [{d.iloc[0]['CI low']:.1f}, "
+                     f"{d.iloc[0]['CI high']:.1f}]" if len(d) else "--")
+        lines.append(" & ".join(cells) + r" \\")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def write_odds_ratio_table(path):
+    table = pd.read_csv(os.path.join(ROBUST, "odds_ratios.csv"))
+    lines = []
+    for _, r in table.iterrows():
+        p = "$<$0.001" if r["p-value"] < 0.001 else f"{r['p-value']:.3f}"
+        lines.append(f"{OR_LABELS[r['Variable']]} & {r['Odds ratio']:.2f} & "
+                     f"{r['CI low']:.2f}--{r['CI high']:.2f} & {p} \\\\")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def write_calibration_table(path):
+    table = pd.read_csv(os.path.join(ROBUST, "calibration.csv"))
+    lines = []
+    for _, r in table.iterrows():
+        lines.append(" & ".join([
+            r["Model"].replace("LogReg", "LR"),
+            f"{r['Mean predicted, raw (%)']:.1f}", f"{r['Mean predicted, corrected (%)']:.1f}",
+            f"{r['Brier, raw']:.3f}", f"{r['Brier, corrected']:.3f}"]) + r" \\")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main():
     os.makedirs(FIGURES, exist_ok=True)
     os.makedirs(TABLES, exist_ok=True)
     write_test_table(os.path.join(TABLES, "test_results.tex"))
     if os.path.exists(os.path.join(RESULTS, "improved_cv", "cv_improved.csv")):
         write_cv_table(os.path.join(TABLES, "cv_improved.tex"))
+    if os.path.exists(os.path.join(ROBUST, "bootstrap_ci.csv")):
+        write_ci_table(os.path.join(TABLES, "bootstrap_ci.tex"))
+        write_odds_ratio_table(os.path.join(TABLES, "odds_ratios.tex"))
+        write_calibration_table(os.path.join(TABLES, "calibration.tex"))
     _, improved = comparison_table()
     write_literature_rows(os.path.join(TABLES, "literature_brfss.tex"),
                           improved, "BRFSS (229,781)")
@@ -196,6 +262,7 @@ def main():
         "distribution_after_sampling.png": "sampling",
         "age_after_sampling.png": "sampling",
         "roc_improved.png": "improved_cv",
+        "calibration.png": "robustness",
         "confusion_matrix_XGBoost.png": "improved_cv",
         "confusion_matrix_LogReg.png": "improved_cv",
         "confusion_matrix_MLP.png": "improved_cv",
