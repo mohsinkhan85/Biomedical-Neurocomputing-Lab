@@ -287,6 +287,17 @@ Disease Prediction Model (HDPM), which balances the training data with
 SMOTE-ENN before classification with XGBoost, and reported an accuracy of
 95.90\% on the Cleveland heart disease dataset.
 
+Recent work has combined such ensembles with explainability methods.
+Mienye and Jere~\cite{mienye2024} optimised AdaBoost, random forest and
+XGBoost with Bayesian hyperparameter search and explained their predictions
+with SHAP. Shah et al.~\cite{shah2025} stacked gradient boosting, CatBoost
+and a neural network and reported an AUC of 0.82 with a recall of 83\%.
+Adekoya et al.~\cite{adekoya2025} combined explainable boosting machines
+with XGBoost and reported an AUC of 0.899 (88.5\% accuracy) on the
+Cleveland data and 0.696 on the Framingham cohort; they note that these
+values are lower than some recent reports above 97\% because their
+framework was developed under stricter methodological controls.
+
 Hybrid and deep models have also been proposed for related clinical
 problems. A DNN incorporating Glomerular Filtration Rate and kidney injury
 markers surpassed traditional ML approaches for the early detection of
@@ -313,7 +324,18 @@ balancing the training data can improve classifier performance; their work
 is a standard reference for hybrid sampling. In the cardiovascular domain,
 Ishaq et al.~\cite{ishaq} used SMOTE to generate synthetic instances of the
 minority class for heart failure survival prediction and reported accuracies
-of 85\% to 94\% with KNN, NB, DT, XGBoost and Random Forests.
+of 85\% to 94\% with KNN, NB, DT, XGBoost and Random Forests. More
+recently, Wei et al.~\cite{wei2025} combined SMOTE-ENN with principal
+component analysis for coronary heart disease prediction and reported that
+the accuracy of a random forest rose from 85.3\% on the imbalanced data to
+92.2\% with SMOTE-ENN and 97.9\% with PCA. Whether such corrections help
+clinical risk models has, however, been questioned. In a simulation study
+covering several machine learning methods, Carriero et
+al.~\cite{carriero2025} found that models developed without a class
+imbalance correction had equal or better calibration, that corrections led
+to an overestimation of risk which recalibration could not always repair,
+and that correcting for imbalance may harm models intended to provide
+individual risk estimates.
 
 \subsection{Data Leakage in Model Evaluation}
 
@@ -324,12 +346,18 @@ Narayanan~\cite{kapoor} found such leakage in hundreds of published ML-based
 studies across many fields. Santos et al.~\cite{santos} showed specifically
 that oversampling before cross-validation produces over-optimistic
 estimates on imbalanced data, and recommended that resampling be applied
-only to the training folds.
+only to the training folds. Rosenblatt et al.~\cite{rosenblatt2024}
+showed in neuroimaging that leakage through feature selection or repeated
+subjects greatly inflates prediction performance, and more so in small
+datasets. The TRIPOD+AI statement~\cite{collins2024} now provides
+reporting guidance for prediction models developed with regression or
+machine learning, so that such studies can be appraised and their models
+evaluated.
 
 \subsection{Research Gap}
 
 Hybrid sampling is widely recommended for imbalanced CVD data, and the
-studies above report accuracies of 85--96\%. These figures, however, are
+studies above report accuracies of 85--98\%. These figures, however, are
 obtained on different datasets, often small ones, and many studies do not
 state whether resampling or feature selection was applied before or after
 the data were split. It therefore remains unclear how much of the reported
@@ -678,6 +706,9 @@ robust metric for comparing models across studies.
 
 \subsection{Statistical Analysis}
 \label{sec:stats}
+
+In line with reporting guidance for prediction models~\cite{collins2024},
+we report uncertainty, discrimination and calibration.
 
 \paragraph{Confidence intervals.} Uncertainty in the test-set results is
 quantified with a stratified bootstrap: the 3,000 positive and 3,000

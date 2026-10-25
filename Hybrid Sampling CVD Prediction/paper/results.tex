@@ -281,7 +281,9 @@ probabilities. On the out-of-fold predictions, where 9.3\% of the records
 have CVD, the improved models predict an average risk of 32--36\%
 (Table~\ref{tab:calibration}), and their Brier scores (0.150--0.177) are
 worse than that of a constant prediction equal to the prevalence (0.084).
-The raw outputs therefore must not be read as individual risks. After the
+The raw outputs therefore must not be read as individual risks, in line
+with the overestimation of risk that Carriero et al.~\cite{carriero2025}
+found for imbalance corrections. After the
 prior correction of Section~\ref{sec:stats}, which uses no additional data,
 the mean predicted risk is 7.6--9.5\% and the Brier score falls to
 0.070--0.072, better than the constant prediction. The corrected
@@ -340,7 +342,7 @@ in the table exceed Deng et al.: XGBoost reaches 0.840 with a recall of
 al.'s AUC of 0.811 lies below the lower 95\% confidence bound of all three
 models (0.827--0.830; Table~\ref{tab:ci}).
 
-\paragraph{Cleveland dataset.} Four studies in Table~\ref{tab:literature}
+\paragraph{Cleveland dataset.} Five studies in Table~\ref{tab:literature}
 use the clinical Cleveland data. Applied unchanged to this dataset, as
 described in Section~\ref{sec:cleveland}, the improved pipeline reaches
 80.1--81.3\% accuracy and an AUC of 0.893--0.900 for SVM, XGBoost, LR and
@@ -351,7 +353,9 @@ and well below the highest (95.9\%). The variation between folds, however,
 is large: the accuracy of LR on individual test folds of 59--60 patients
 ranges from 71.2\% to 90.0\%, so single-split results on this dataset are
 uncertain by several percentage points, and differences of a few points
-between studies are within this range.
+between studies are within this range. Our AUC agrees closely with that of
+Adekoya et al.~\cite{adekoya2025} (0.899), who emphasise strict
+methodological controls.
 
 \paragraph{Other datasets.} The remaining studies use other clinical
 datasets (a CVD dataset, a Beijing hypertension cohort and the KNHANES
@@ -397,6 +401,7 @@ S. K. Mohan et al.~\cite{mohan} & Cleveland (303) & Hybrid (HRFLM) & 88.40 & 90.
 N. L. Fitriyani et al.~\cite{fitriyani} & Cleveland (303) & SMOTEENN + XGBoost & 95.90 & 97.14 & 94.67 & 95.35 & -- \\
 A. A. Almazroi et al.~\cite{almazroi} & Cleveland (303) & DNN & 82.49 & -- & 87.24 & 84.41 & -- \\
 J. P. Li et al.~\cite{li} & Cleveland (303) & SVM (Linear) & 85.00 & -- & 75.00 & -- & -- \\
+A. Adekoya et al.~\cite{adekoya2025} & Cleveland (303) & EBM + XGBoost & 88.50 & -- & -- & -- & 89.90 \\
 \inputrows{tables/literature_cleveland.tex}
 \midrule
 \multicolumn{8}{l}{\emph{Other datasets (not directly comparable)}} \\
