@@ -255,7 +255,9 @@ def main():
         write_literature_rows(os.path.join(TABLES, "literature_cleveland.tex"),
                               means, "Cleveland (297)", std=stds)
     plot_improved(os.path.join(FIGURES, "improved_results.png"))
-    plot_learning_curves(os.path.join(FIGURES, "improved_learning_curves.png"))
+    # Learning curves are kept for supplementary material, not the paper.
+    plot_learning_curves(os.path.join(RESULTS, "improved_cv",
+                                      "learning_curves_supplementary.png"))
     copies = {
         "distribution_before_sampling.png": "sampling",
         "age_before_sampling.png": "sampling",

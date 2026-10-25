@@ -19,7 +19,7 @@ Cleveland heart disease data (`data/cleveland/`).
 | 3.7 External evaluation | Improved pipeline on Cleveland, 5 × 5-fold cross-validation | `run_cleveland.py` |
 | 4 Models and metrics | DT, SVM, XGBoost, LR; autoencoder + CNN / NN / MLP; accuracy, precision, recall, F1, AUC | `hscvd/models.py`, `hscvd/evaluation.py` |
 | 4.4 Statistical analysis | Bootstrap CIs, odds ratios, calibration and prior correction | `run_robustness.py` |
-| 5 Results | Tables 3–9, Figs. 4–8 | `run_improved.py`, `run_ablation.py`, `run_robustness.py`, `run_cleveland.py`, `make_paper_assets.py` |
+| 5 Results | Tables 3–9, Figs. 4–7 | `run_improved.py`, `run_ablation.py`, `run_robustness.py`, `run_cleveland.py`, `make_paper_assets.py` |
 
 ## Setup
 
@@ -39,12 +39,12 @@ python run_improved.py
 # Table 4: ablation study
 python run_ablation.py
 
-# Table 3 (right), Table 6, Figs. 4-7: improved pipeline with 5-fold CV
+# Table 3 (right), Table 6, Figs. 4-6: improved pipeline with 5-fold CV
 # (DL results depend on the training order, so the improved column of the
 # paper is taken from this run, not from run_improved.py above)
 python run_improved.py --no-baseline --cv --out results/improved_cv
 
-# Tables 5, 7, 8 and Fig. 8: bootstrap CIs, odds ratios, calibration
+# Tables 5, 7, 8 and Fig. 7: bootstrap CIs, odds ratios, calibration
 python run_robustness.py
 
 # Table 9, Cleveland rows

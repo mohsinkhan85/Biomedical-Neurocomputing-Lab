@@ -139,12 +139,10 @@ Model & AUC & Recall & AUC & Recall & $\Delta$AUC \\
 \end{table}
 The confusion matrices (Fig.~\ref{fig:cmB}) show a balanced error profile:
 the improved XGBoost correctly identifies 2,483 of 3,000 CVD cases and
-2,077 of 3,000 non-CVD cases. The learning curves of the DL models
-(Fig.~\ref{fig:lcB}) show the validation loss reaching its minimum after
-6 (CNN), 11 (MLP) and 17 (NN) epochs and then levelling off; training stops
-three epochs after the last improvement and the weights of the best epoch
-are restored, which prevents over-fitting. The training loss is computed with class weights and is
-therefore not directly comparable to the unweighted validation loss.
+2,077 of 3,000 non-CVD cases. For the DL models, the validation loss
+reached its minimum after 6 (CNN), 11 (MLP) and 17 (NN) epochs; training
+stopped three epochs later and the weights of the best epoch were restored,
+which prevents over-fitting.
 
 \begin{figure}[t]
 \centering
@@ -180,14 +178,6 @@ unseen test set.}
 \label{fig:cmB}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/improved_learning_curves.png}
-\caption{Training and validation accuracy (top) and loss (bottom) of the
-improved DL models; training stops early once the validation loss no longer
-improves, and the weights of the best epoch (dashed line) are restored.}
-\label{fig:lcB}
-\end{figure}
 
 \subsection{Five-Fold Cross-Validation}
 \label{sec:cv}
@@ -333,7 +323,7 @@ organised by dataset.
 LightGBM model on the same survey data and obtained an AUC of 0.811 with
 90.6\% accuracy. This accuracy was measured at the natural prevalence of
 about 10\%, where a trivial classifier that always predicts ``no CVD''
-already reaches 89.7\% (reference row in Table~\ref{tab:literature}), so it
+already reaches 89.7\% (see the note to Table~\ref{tab:literature}), so it
 mainly reflects the class imbalance; our accuracy, in contrast, is measured
 on a balanced test set, where the same trivial classifier scores 50\%. On
 the AUC, which is comparable across both settings, all three proposed models
@@ -393,7 +383,6 @@ Study & Dataset ($n$) & Method & Acc. & Prec. & Rec. & F1 & AUC \\
 \midrule
 \multicolumn{8}{l}{\emph{Same dataset: BRFSS 2015 (self-reported survey)}} \\
 L. Deng et al.~\cite{deng} & BRFSS 2015 & LightGBM & 90.61$^{a}$ & 73.89$^{a}$ & -- & -- & 81.11 \\
-\emph{Reference: always ``no CVD''} & BRFSS (229,781) & Majority class & 89.68$^{a}$ & -- & 0.00 & -- & 50.00 \\
 \inputrows{tables/literature_brfss.tex}
 \midrule
 \multicolumn{8}{l}{\emph{Cleveland heart disease data (clinical measurements)}} \\
