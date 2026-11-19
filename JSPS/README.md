@@ -5,4 +5,4 @@ Code from Muhammad Mohsin Khan's JSPS Invitational Fellowship for Research in Ja
 
 | Folder | Paper |
 |---|---|
-| [`Paper3_EF_CrossSite`](Paper3_EF_CrossSite) | Beyond Fine-Tuning: Label-Efficient and Safe Cross-Site Adaptation of Echocardiographic Ejection Fraction Models (IEEE JBHI, submitted) |
+| [`jsps-p3-ef-crosssite-adaptation`](https://github.com/mohsinkhan85/jsps-p3-ef-crosssite-adaptation) | Beyond Fine-Tuning: Label-Efficient and Safe Cross-Site Adaptation of Echocardiographic Ejection Fraction Models (IEEE JBHI, submitted) |
